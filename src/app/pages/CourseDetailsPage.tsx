@@ -54,12 +54,29 @@ export default function CourseDetailsPage() {
           Back to All Courses
         </Link>
 
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <FolderOpen className="h-8 w-8" style={{ color: course.color }} />
-            <h1>{course.name}</h1>
+        <div className="mb-8 bg-white p-6 rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex flex-col md:flex-row gap-6">
+            {course.image ? (
+              <div className="w-full md:w-48 aspect-video md:aspect-square rounded-lg overflow-hidden border border-gray-100 shadow-sm shrink-0">
+                <img
+                  src={resolveMediaUrl(course.image)}
+                  alt={course.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div
+                className="h-16 w-16 rounded-lg flex items-center justify-center shrink-0"
+                style={{ backgroundColor: course.color + '20', color: course.color }}
+              >
+                <FolderOpen className="h-8 w-8" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-3xl font-bold mb-3">{course.name}</h1>
+              <p className="text-gray-600 text-lg leading-relaxed">{course.description}</p>
+            </div>
           </div>
-          <p className="text-gray-600">{course.description}</p>
         </div>
 
         {topics.length > 0 ? (
@@ -73,6 +90,7 @@ export default function CourseDetailsPage() {
                   description={topic.description}
                   icon={topic.icon}
                   color={topic.color}
+                  image={topic.image}
                   to={`/courses/${courseId}/${topic.id}`}
                 />
               ))}

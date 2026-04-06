@@ -6,6 +6,7 @@ const courseSchema = new mongoose.Schema(
     description: { type: String, default: '' },
     icon: { type: String, default: 'Briefcase' },
     color: { type: String, default: '#4299E1' },
+    image: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false }
@@ -23,6 +24,7 @@ const topicSchema = new mongoose.Schema(
     description: { type: String, default: '' },
     icon: { type: String, default: 'FileText' },
     color: { type: String, default: '#4299E1' },
+    image: { type: String, default: '' },
     order: { type: Number, default: 1 },
   },
   { versionKey: false }

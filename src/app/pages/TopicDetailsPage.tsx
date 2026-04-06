@@ -109,17 +109,27 @@ export default function TopicDetailsPage() {
           <span className="text-gray-900">{topic.name}</span>
         </div>
 
-        <div className="mb-8 bg-white p-6 rounded-lg shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div
-              className="h-12 w-12 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: topic.color + '20', color: topic.color }}
-            >
-              <FileText className="h-6 w-6" />
-            </div>
-            <div>
-              <h1>{topic.name}</h1>
-              <p className="text-gray-600">{topic.description}</p>
+        <div className="mb-8 bg-white p-6 rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex flex-col md:flex-row gap-6">
+            {topic.image ? (
+              <div className="w-full md:w-48 aspect-video md:aspect-square rounded-lg overflow-hidden border border-gray-100 shadow-sm shrink-0">
+                <img
+                  src={resolveMediaUrl(topic.image)}
+                  alt={topic.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div
+                className="h-16 w-16 rounded-lg flex items-center justify-center shrink-0"
+                style={{ backgroundColor: topic.color + '20', color: topic.color }}
+              >
+                <FileText className="h-8 w-8" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold mb-2">{topic.name}</h1>
+              <p className="text-gray-600 text-lg leading-relaxed">{topic.description}</p>
             </div>
           </div>
         </div>

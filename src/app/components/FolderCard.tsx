@@ -1,12 +1,14 @@
 import { Link } from 'react-router';
 import { LucideIcon, Folder } from 'lucide-react';
 import * as Icons from 'lucide-react';
+import { resolveMediaUrl } from '../utils/api';
 
 interface FolderCardProps {
   title: string;
   description: string;
   icon?: string;
   color?: string;
+  image?: string;
   to: string;
   onClick?: () => void;
 }
@@ -16,6 +18,7 @@ export function FolderCard({
   description,
   icon = 'Folder',
   color = '#FDB022',
+  image,
   to,
   onClick,
 }: FolderCardProps) {
@@ -29,15 +32,27 @@ export function FolderCard({
       className="group block p-6 rounded-lg border-2 border-gray-200 hover:border-gray-300 bg-white hover:shadow-lg transition-all duration-200"
     >
       <div className="flex items-start gap-4">
-        {/* Folder icon with custom color */}
+        {/* Image or Folder icon with custom color */}
         <div
-          className="relative flex-shrink-0"
+          className="relative flex-shrink-0 w-16 h-16"
           style={{ color }}
         >
-          <Folder className="h-16 w-16" fill="currentColor" />
-          <div className="absolute inset-0 flex items-center justify-center pt-1">
-            <IconComponent className="h-7 w-7 text-white" strokeWidth={2.5} />
-          </div>
+          {image ? (
+            <div className="w-full h-full rounded-lg overflow-hidden border border-gray-100 shadow-sm">
+              <img
+                src={resolveMediaUrl(image)}
+                alt={title}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+              />
+            </div>
+          ) : (
+            <>
+              <Folder className="h-16 w-16" fill="currentColor" />
+              <div className="absolute inset-0 flex items-center justify-center pt-1">
+                <IconComponent className="h-7 w-7 text-white" strokeWidth={2.5} />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Content */}

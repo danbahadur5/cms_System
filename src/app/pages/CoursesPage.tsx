@@ -39,6 +39,7 @@ export default function CoursesPage() {
                 description={course.description}
                 icon={course.icon}
                 color={course.color}
+                image={course.image}
                 to={`/courses/${course.id}`}
               />
             ))}

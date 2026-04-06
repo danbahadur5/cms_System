@@ -4,6 +4,7 @@ export interface Course {
   description: string;
   icon: string;
   color: string;
+  image?: string;
   createdAt: string;
 }
 
@@ -14,6 +15,7 @@ export interface Topic {
   description: string;
   icon: string;
   color: string;
+  image?: string;
   order: number;
 }
 

@@ -43,7 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
-import { ArrowLeft, Plus, Edit, Trash2, ChevronDown, ChevronRight, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, ChevronDown, ChevronRight, ImageIcon, Loader2 } from 'lucide-react';
 import { ImageLightboxDialog } from '../components/ImageLightboxDialog';
 import { LessonPracticeImagesField } from '../components/LessonPracticeImagesField';
 import { LessonAttachmentsField } from '../components/LessonAttachmentsField';
@@ -72,11 +72,15 @@ export default function AdminCoursesPage() {
   const [courseDesc, setCourseDesc] = useState('');
   const [courseIcon, setCourseIcon] = useState('Briefcase');
   const [courseColor, setCourseColor] = useState('#4299E1');
+  const [courseImage, setCourseImage] = useState('');
+  const [courseImageBusy, setCourseImageBusy] = useState(false);
 
   const [topicName, setTopicName] = useState('');
   const [topicDesc, setTopicDesc] = useState('');
   const [topicIcon, setTopicIcon] = useState('FileText');
   const [topicColor, setTopicColor] = useState('#4299E1');
+  const [topicImage, setTopicImage] = useState('');
+  const [topicImageBusy, setTopicImageBusy] = useState(false);
   const [topicOrder, setTopicOrder] = useState('1');
 
   const [lessonTitle, setLessonTitle] = useState('');
@@ -159,11 +163,13 @@ export default function AdminCoursesPage() {
         setCourseDesc(item.description);
         setCourseIcon(item.icon);
         setCourseColor(item.color);
+        setCourseImage(item.image || '');
       } else if (type === 'topic') {
         setTopicName(item.name);
         setTopicDesc(item.description);
         setTopicIcon(item.icon);
         setTopicColor(item.color);
+        setTopicImage(item.image || '');
         setTopicOrder(item.order.toString());
       } else if (type === 'lesson') {
         setLessonTitle(item.title);
@@ -186,10 +192,14 @@ export default function AdminCoursesPage() {
     setCourseDesc('');
     setCourseIcon('Briefcase');
     setCourseColor('#4299E1');
+    setCourseImage('');
+    setCourseImageBusy(false);
     setTopicName('');
     setTopicDesc('');
     setTopicIcon('FileText');
     setTopicColor('#4299E1');
+    setTopicImage('');
+    setTopicImageBusy(false);
     setTopicOrder('1');
     setLessonTitle('');
     setLessonContent('');
@@ -209,6 +219,7 @@ export default function AdminCoursesPage() {
             description: courseDesc,
             icon: courseIcon,
             color: courseColor,
+            image: courseImage,
           });
           toast.success('Course updated successfully');
         } else {
@@ -217,6 +228,7 @@ export default function AdminCoursesPage() {
             description: courseDesc,
             icon: courseIcon,
             color: courseColor,
+            image: courseImage,
           });
           toast.success('Course added successfully');
         }
@@ -227,6 +239,7 @@ export default function AdminCoursesPage() {
             description: topicDesc,
             icon: topicIcon,
             color: topicColor,
+            image: topicImage,
             order: parseInt(topicOrder, 10),
           });
           toast.success('Topic updated successfully');
@@ -237,6 +250,7 @@ export default function AdminCoursesPage() {
             description: topicDesc,
             icon: topicIcon,
             color: topicColor,
+            image: topicImage,
             order: parseInt(topicOrder, 10),
           });
           toast.success('Topic added successfully');
@@ -632,6 +646,67 @@ export default function AdminCoursesPage() {
                     onChange={(e) => setCourseColor(e.target.value)}
                   />
                 </div>
+                <div>
+                  <Label>Course Banner / Image (Optional)</Label>
+                  <div className="mt-2 space-y-3">
+                    {courseImage && (
+                      <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-gray-200">
+                        <img
+                          src={resolveMediaUrl(courseImage)}
+                          alt="Course banner"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setCourseImage('')}
+                          className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 shadow-sm"
+                          title="Remove image"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full relative"
+                        disabled={courseImageBusy}
+                      >
+                        {courseImageBusy ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="mr-2 h-4 w-4" />
+                            {courseImage ? 'Change Image' : 'Upload Image'}
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              setCourseImageBusy(true);
+                              const url = await uploadLessonImage(file);
+                              setCourseImage(url);
+                              toast.success('Image uploaded');
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : 'Upload failed');
+                            } finally {
+                              setCourseImageBusy(false);
+                            }
+                          }}
+                        />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
 
@@ -689,6 +764,67 @@ export default function AdminCoursesPage() {
                     onChange={(e) => setTopicOrder(e.target.value)}
                     min="1"
                   />
+                </div>
+                <div>
+                  <Label>Topic Banner / Image (Optional)</Label>
+                  <div className="mt-2 space-y-3">
+                    {topicImage && (
+                      <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-gray-200">
+                        <img
+                          src={resolveMediaUrl(topicImage)}
+                          alt="Topic banner"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setTopicImage('')}
+                          className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 shadow-sm"
+                          title="Remove image"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full relative"
+                        disabled={topicImageBusy}
+                      >
+                        {topicImageBusy ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="mr-2 h-4 w-4" />
+                            {topicImage ? 'Change Image' : 'Upload Image'}
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              setTopicImageBusy(true);
+                              const url = await uploadLessonImage(file);
+                              setTopicImage(url);
+                              toast.success('Image uploaded');
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : 'Upload failed');
+                            } finally {
+                              setTopicImageBusy(false);
+                            }
+                          }}
+                        />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </>
             )}

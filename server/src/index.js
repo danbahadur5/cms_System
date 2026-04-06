@@ -88,6 +88,7 @@ function serializeCourse(doc) {
     description: o.description,
     icon: o.icon,
     color: o.color,
+    image: o.image,
     createdAt: (o.createdAt instanceof Date ? o.createdAt : new Date(o.createdAt)).toISOString(),
   };
 }
@@ -101,6 +102,7 @@ function serializeTopic(doc) {
     description: o.description,
     icon: o.icon,
     color: o.color,
+    image: o.image,
     order: o.order,
   };
 }
@@ -467,7 +469,7 @@ app.get('/api/admin/tree', requireAdmin, async (_req, res) => {
 
 app.post('/api/courses', requireAdmin, async (req, res) => {
   try {
-    const { name, description, icon, color } = req.body || {};
+    const { name, description, icon, color, image } = req.body || {};
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'name is required' });
     }
@@ -476,6 +478,7 @@ app.post('/api/courses', requireAdmin, async (req, res) => {
       description: String(description || ''),
       icon: String(icon || 'Briefcase'),
       color: String(color || '#4299E1'),
+      image: String(image || ''),
     });
     res.status(201).json(serializeCourse(course));
   } catch (e) {
@@ -494,6 +497,7 @@ app.patch('/api/courses/:id', requireAdmin, async (req, res) => {
     if (req.body.description != null) updates.description = String(req.body.description);
     if (req.body.icon != null) updates.icon = String(req.body.icon);
     if (req.body.color != null) updates.color = String(req.body.color);
+    if (req.body.image != null) updates.image = String(req.body.image);
     const course = await Course.findByIdAndUpdate(id, updates, { new: true }).exec();
     if (!course) return res.status(404).json({ error: 'Course not found' });
     res.json(serializeCourse(course));
@@ -528,7 +532,7 @@ app.post('/api/courses/:courseId/topics', requireAdmin, async (req, res) => {
     }
     const parent = await Course.findById(courseId).exec();
     if (!parent) return res.status(404).json({ error: 'Course not found' });
-    const { name, description, icon, color, order } = req.body || {};
+    const { name, description, icon, color, order, image } = req.body || {};
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'name is required' });
     }
@@ -538,6 +542,7 @@ app.post('/api/courses/:courseId/topics', requireAdmin, async (req, res) => {
       description: String(description || ''),
       icon: String(icon || 'FileText'),
       color: String(color || '#4299E1'),
+      image: String(image || ''),
       order: Number(order) || 1,
     });
     res.status(201).json(serializeTopic(topic));
@@ -557,6 +562,7 @@ app.patch('/api/topics/:id', requireAdmin, async (req, res) => {
     if (req.body.description != null) updates.description = String(req.body.description);
     if (req.body.icon != null) updates.icon = String(req.body.icon);
     if (req.body.color != null) updates.color = String(req.body.color);
+    if (req.body.image != null) updates.image = String(req.body.image);
     if (req.body.order != null) updates.order = Number(req.body.order);
     const topic = await Topic.findByIdAndUpdate(id, updates, { new: true }).exec();
     if (!topic) return res.status(404).json({ error: 'Topic not found' });
