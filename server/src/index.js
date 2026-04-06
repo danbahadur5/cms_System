@@ -35,6 +35,9 @@ function extensionForMime(mime) {
 }
 
 const PORT = Number(process.env.PORT) || 4000;
+const IS_VERCEL = Boolean(process.env.VERCEL);
+const NODE_ENV = trimEnvQuotes(process.env.NODE_ENV || 'development');
+const IS_PROD = NODE_ENV === 'production';
 const MONGODB_URI =
   trimEnvQuotes(process.env.MONGODB_URI) ||
   'mongodb://127.0.0.1:27017/course_management';
@@ -46,6 +49,8 @@ const JWT_SECRET = trimEnvQuotes(process.env.JWT_SECRET || '');
 const JWT_EXPIRES = '8h';
 /** Optional, e.g. https://api.yoursite.com — prefix for local /uploads URLs when the SPA is on another host */
 const API_PUBLIC_URL = trimEnvQuotes(process.env.API_PUBLIC_URL || '').replace(/\/$/, '');
+/** Optional: comma-separated allowlist e.g. "https://app.example.com,https://admin.example.com" */
+const CORS_ORIGIN = trimEnvQuotes(process.env.CORS_ORIGIN || '');
 
 const cloudName = trimEnvQuotes(process.env.CLOUDINARY_CLOUD_NAME || '');
 const cloudKey = trimEnvQuotes(process.env.CLOUDINARY_API_KEY || '');
@@ -138,7 +143,42 @@ function requireAdmin(req, res, next) {
 }
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+app.disable('x-powered-by');
+if (IS_PROD || IS_VERCEL) {
+  app.set('trust proxy', 1);
+}
+
+const allowedOrigins = CORS_ORIGIN
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true); // curl/postman/server-to-server
+      if (!allowedOrigins.length) return callback(null, true); // fallback: allow all if not configured
+      return callback(null, allowedOrigins.includes(origin));
+    },
+    credentials: true,
+  })
+);
+
+// Small security baseline without extra dependencies
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (IS_PROD || IS_VERCEL) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+  if (!String(req.path || '').startsWith('/uploads')) {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+  next();
+});
+
 app.use(express.json({ limit: '2mb' }));
 app.use(
   '/uploads',
@@ -147,6 +187,53 @@ app.use(
     immutable: false,
   })
 );
+
+let dbConnectPromise = null;
+async function ensureDbConnected() {
+  if (mongoose.connection.readyState === 1) return;
+  if (!dbConnectPromise) {
+    dbConnectPromise = mongoose.connect(MONGODB_URI).catch((e) => {
+      dbConnectPromise = null;
+      throw e;
+    });
+  }
+  await dbConnectPromise;
+}
+
+function createRateLimiter({ windowMs, max, keyPrefix }) {
+  const hits = new Map();
+  return (req, res, next) => {
+    const now = Date.now();
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+    const key = `${keyPrefix}:${ip}`;
+    const current = hits.get(key);
+    if (!current || now - current.start >= windowMs) {
+      hits.set(key, { count: 1, start: now });
+      return next();
+    }
+    if (current.count >= max) {
+      const retryAfter = Math.ceil((windowMs - (now - current.start)) / 1000);
+      res.setHeader('Retry-After', String(Math.max(1, retryAfter)));
+      return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
+    }
+    current.count += 1;
+    return next();
+  };
+}
+
+const authLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, keyPrefix: 'auth' });
+const uploadLimiter = createRateLimiter({ windowMs: 5 * 60 * 1000, max: 60, keyPrefix: 'upload' });
+
+/** Ensure DB is ready for each request in serverless mode. */
+app.use(async (_req, res, next) => {
+  try {
+    await ensureDbConnected();
+    next();
+  } catch (e) {
+    console.error('[mongo] connection failed:', e);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -250,7 +337,13 @@ async function saveUploadedBufferGeneric(file, prefix) {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, mongo: mongoose.connection.readyState === 1 });
+  res.json({
+    ok: true,
+    env: NODE_ENV,
+    vercel: IS_VERCEL,
+    mongo: mongoose.connection.readyState === 1,
+    uptimeSec: Math.round(process.uptime()),
+  });
 });
 
 app.get('/api/stats', async (_req, res) => {
@@ -265,7 +358,7 @@ app.get('/api/stats', async (_req, res) => {
   }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', authLimiter, (req, res) => {
   if (!requireEnvForAuth()) {
     return res.status(503).json({
       error: 'Server auth is not configured. Set ADMIN_EMAIL, ADMIN_PASSWORD, and JWT_SECRET (min 16 chars) in server .env.',
@@ -554,7 +647,7 @@ app.delete('/api/lessons/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/upload', requireAdmin, uploadSingleFile, async (req, res) => {
+app.post('/api/upload', uploadLimiter, requireAdmin, uploadSingleFile, async (req, res) => {
   try {
     if (!req.file?.buffer) {
       return res.status(400).json({
@@ -590,7 +683,7 @@ app.post('/api/upload', requireAdmin, uploadSingleFile, async (req, res) => {
   }
 });
 
-app.post('/api/upload/file', requireAdmin, uploadSingleAnyFile, async (req, res) => {
+app.post('/api/upload/file', uploadLimiter, requireAdmin, uploadSingleAnyFile, async (req, res) => {
   try {
     if (!req.file?.buffer) {
       return res.status(400).json({
@@ -634,17 +727,51 @@ app.post('/api/upload/file', requireAdmin, uploadSingleAnyFile, async (req, res)
   }
 });
 
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+app.use((err, _req, res, _next) => {
+  console.error('[unhandled]', err);
+  if (res.headersSent) return;
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 async function start() {
   if (!JWT_SECRET || JWT_SECRET.length < 16) {
     console.warn('[warn] JWT_SECRET missing or too short — auth routes will return 503 until fixed.');
   }
-  await mongoose.connect(MONGODB_URI);
-  app.listen(PORT, () => {
+  if (!cloudinaryReady) {
+    console.warn('[warn] Cloudinary not configured — uploads will use local disk fallback (ephemeral on serverless).');
+  }
+  if (IS_PROD && !allowedOrigins.length) {
+    console.warn('[warn] CORS_ORIGIN not set in production — allowing all origins.');
+  }
+  await ensureDbConnected();
+  const server = app.listen(PORT, () => {
     console.log(`API listening on http://localhost:${PORT}`);
+  });
+
+  const shutdown = async (signal) => {
+    try {
+      console.log(`[shutdown] ${signal}`);
+      server.close();
+      await mongoose.connection.close();
+      process.exit(0);
+    } catch (e) {
+      console.error('[shutdown] failed:', e);
+      process.exit(1);
+    }
+  };
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+}
+
+if (!IS_VERCEL) {
+  start().catch((e) => {
+    console.error(e);
+    process.exit(1);
   });
 }
 
-start().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+export default app;

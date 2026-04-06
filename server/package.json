@@ -6,7 +6,7 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "seed": "node src/seed.js",
-    "build": "npm run build --prefix ../"
+    "build": "npm run build"
   },
   "dependencies": {
     "cloudinary": "^2.5.1",
