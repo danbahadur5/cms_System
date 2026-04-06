@@ -66,7 +66,7 @@ export default function AdminLoginPage() {
             </div>
             <div>
               <h1 className="text-xl font-semibold text-gray-900">Staff sign in</h1>
-              <p className="text-sm text-gray-500">Admin dashboard (API + MongoDB)</p>
+              <p className="text-sm text-gray-500">Admin dashboard</p>
             </div>
           </div>
 

@@ -46,7 +46,6 @@ import {
 import { ArrowLeft, Plus, Edit, Trash2, ChevronDown, ChevronRight, ImageIcon, Loader2 } from 'lucide-react';
 import { ImageLightboxDialog } from '../components/ImageLightboxDialog';
 import { LessonPracticeImagesField } from '../components/LessonPracticeImagesField';
-import { LessonAttachmentsField } from '../components/LessonAttachmentsField';
 import { toast } from 'sonner';
 
 type DialogType = 'course' | 'topic' | 'lesson' | null;
@@ -92,7 +91,6 @@ export default function AdminCoursesPage() {
   const [lessonImages, setLessonImages] = useState<string[]>([]);
   const [practiceImagesBusy, setPracticeImagesBusy] = useState(false);
   const [lessonAttachments, setLessonAttachments] = useState<string[]>([]);
-  const [attachmentsBusy, setAttachmentsBusy] = useState(false);
   const [imageLightbox, setImageLightbox] = useState<{ urls: string[]; index: number } | null>(
     null
   );
@@ -886,8 +884,8 @@ export default function AdminCoursesPage() {
 
                 <div className="pt-4 border-t border-gray-100">
                   <h4 className="text-sm font-semibold mb-3 text-gray-900 flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4" />
-                    Lesson Media & Images
+                    <Plus className="h-4 w-4" />
+                    Lesson Media & Attachments
                   </h4>
                   <LessonPracticeImagesField
                     images={lessonImages}
@@ -900,20 +898,6 @@ export default function AdminCoursesPage() {
                     onOpenLightbox={(urls, index) => setImageLightbox({ urls, index })}
                   />
                 </div>
-
-                <div className="pt-4 border-t border-gray-100">
-                  <h4 className="text-sm font-semibold mb-3 text-gray-900 flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Additional Files & Attachments
-                  </h4>
-                  <LessonAttachmentsField
-                    attachments={lessonAttachments}
-                    onAttachmentsChange={setLessonAttachments}
-                    persistLessonId={editingItem?.id ?? null}
-                    onAfterServerSync={() => refreshData({ silent: true })}
-                    onBusyChange={setAttachmentsBusy}
-                  />
-                </div>
               </>
             )}
           </div>
@@ -924,7 +908,7 @@ export default function AdminCoursesPage() {
             </Button>
             <Button
               type="button"
-              disabled={dialogType === 'lesson' && (practiceImagesBusy || attachmentsBusy)}
+              disabled={dialogType === 'lesson' && practiceImagesBusy}
               onClick={() => void handleSave()}
             >
               {editingItem ? 'Update' : 'Create'}

@@ -12,7 +12,8 @@ export function getUploadApiBase(): string {
   const explicit = getApiBase();
   if (explicit) return explicit;
   if (import.meta.env.DEV) {
-    return `http://127.0.0.1:${__COURSE_API_PORT__}`;
+    // Return empty to use relative URLs and the Vite proxy
+    return '';
   }
   return '';
 }
@@ -21,9 +22,7 @@ export function getUploadApiBase(): string {
 export function getMediaApiOrigin(): string {
   const base = getApiBase();
   if (base) return base;
-  if (import.meta.env.DEV) {
-    return `http://127.0.0.1:${__COURSE_API_PORT__}`;
-  }
+  // If no explicit API URL is set, return empty to use relative URLs and the Vite proxy
   return '';
 }
 

@@ -97,6 +97,7 @@ export function LessonAttachmentsField({
   const [pending, setPending] = useState<PendingFile[]>([]);
   const pendingCleanupRef = useRef<PendingFile[]>([]);
   pendingCleanupRef.current = pending;
+  const [dragActive, setDragActive] = useState(false);
 
   const attachmentsRef = useRef(attachments);
   useEffect(() => {
@@ -199,6 +200,14 @@ export function LessonAttachmentsField({
     enqueue(Array.from(files));
   };
 
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+    if (disabled) return;
+    const { files } = e.dataTransfer;
+    if (files?.length) enqueue(Array.from(files));
+  };
+
   const removeAt = (index: number) => {
     const next = attachments.filter((_, i) => i !== index);
     attachmentsRef.current = next;
@@ -235,18 +244,33 @@ export function LessonAttachmentsField({
       />
 
       <div
+        role="region"
+        aria-label="File upload area"
+        onDragEnter={(e) => {
+          e.preventDefault();
+          if (!disabled) setDragActive(true);
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          if (!disabled) setDragActive(true);
+        }}
+        onDrop={handleDrop}
+        onClick={() => !disabled && inputRef.current?.click()}
         className={cn(
-          'flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3',
-          busy && 'opacity-60'
+          'flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-4 py-8 transition hover:border-blue-400 hover:bg-blue-50/40',
+          dragActive ? 'border-blue-500 bg-blue-50/80' : 'border-gray-300 bg-gray-50/60',
+          disabled && 'pointer-events-none opacity-50'
         )}
       >
-        <div className="flex items-center gap-2 text-sm text-gray-700">
-          <Upload className="h-4 w-4 text-gray-400" aria-hidden />
-          <span>{busy ? 'Uploading to server...' : 'Upload lesson materials'}</span>
+        <Upload className="h-10 w-10 text-gray-400" aria-hidden />
+        <div className="text-center text-sm text-gray-700">
+          <span className="block font-semibold text-gray-800">Click to browse, Drop, or Paste (Ctrl+V)</span>
+          <span className="mt-1 block text-xs text-gray-500">
+            PDFs, documents, and other materials will be uploaded to the server
+          </span>
         </div>
-        <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={() => inputRef.current?.click()}>
-          Choose files
-        </Button>
       </div>
 
       {(attachments.length > 0 || pending.length > 0) && (
@@ -316,7 +340,7 @@ export function LessonAttachmentsField({
                 )}
                 <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 text-white">
                   <Loader2 className="h-4 w-4 animate-spin text-blue-200" aria-hidden />
-                  <span className="text-xs font-medium">Uploading to Cloudinary...</span>
+                  <span className="text-xs font-medium">Uploading to server...</span>
                 </div>
               </li>
             );
