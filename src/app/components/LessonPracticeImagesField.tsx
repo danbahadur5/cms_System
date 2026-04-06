@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, Dispatch, DragEvent, SetStateAction } from 'react';
-import { Upload, ImageIcon, Trash2, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
+import { Upload, ImageIcon, Trash2, ChevronUp, ChevronDown, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { uploadLessonImage, updateLesson } from '../utils/courseService';
+import { uploadLessonImage, uploadLessonFile, updateLesson } from '../utils/courseService';
 import { resolveMediaUrl } from '../utils/api';
 import { Button } from './ui/button';
 import { cn } from './ui/utils';
 
-const ACCEPT = 'image/*,.heic,.heif';
+const ACCEPT = 'image/*,.heic,.heif,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt';
 
 function looksLikeImageFile(file: File): boolean {
   if (file.type.startsWith('image/')) return true;
@@ -15,12 +15,18 @@ function looksLikeImageFile(file: File): boolean {
   return /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/i.test(n);
 }
 
-type PendingSlot = { id: string; previewUrl: string; file: File };
+type PendingSlot = {
+  id: string;
+  file: File;
+  kind: 'image' | 'file';
+  previewUrl?: string;
+};
 
 export type LessonPracticeImagesFieldProps = {
   images: string[];
   onImagesChange: Dispatch<SetStateAction<string[]>>;
-  /** When set, uploads and list edits persist to this lesson immediately. */
+  attachments?: string[];
+  onAttachmentsChange?: Dispatch<SetStateAction<string[]>>;
   persistLessonId?: string | null;
   onAfterServerSync?: () => void | Promise<void>;
   onBusyChange?: (busy: boolean) => void;
@@ -31,6 +37,8 @@ export type LessonPracticeImagesFieldProps = {
 export function LessonPracticeImagesField({
   images,
   onImagesChange,
+  attachments = [],
+  onAttachmentsChange,
   persistLessonId,
   onAfterServerSync,
   onBusyChange,
@@ -43,36 +51,42 @@ export function LessonPracticeImagesField({
   pendingSlotsCleanupRef.current = pendingSlots;
   const [dragActive, setDragActive] = useState(false);
 
-  /** Keeps persist order correct when multiple uploads are chained. */
   const imagesRef = useRef(images);
+  const attachmentsRef = useRef(attachments);
   useEffect(() => {
     imagesRef.current = images;
   }, [images]);
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
 
-  /** Serialize upload jobs so state stays consistent with Cloudinary + DB. */
   const uploadChainRef = useRef(Promise.resolve());
 
-  const persistImages = useCallback(
-    async (next: string[]) => {
+  const persistMedia = useCallback(
+    async (nextImages: string[], nextAttachments: string[]) => {
       if (!persistLessonId) return;
-      await updateLesson(persistLessonId, { images: next });
+      await updateLesson(persistLessonId, {
+        images: nextImages,
+        attachments: nextAttachments,
+      });
     },
     [persistLessonId]
   );
 
-  const commitListChange = useCallback(
-    async (next: string[]) => {
-      onImagesChange(next);
+  const commitImageListChange = useCallback(
+    async (nextImages: string[]) => {
+      onImagesChange(nextImages);
+      imagesRef.current = nextImages;
       if (!persistLessonId) return;
       try {
-        await persistImages(next);
+        await persistMedia(nextImages, attachmentsRef.current);
         await onAfterServerSync?.();
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Could not save images on the lesson.';
         toast.error(msg);
       }
     },
-    [onImagesChange, persistLessonId, persistImages, onAfterServerSync]
+    [onImagesChange, persistLessonId, persistMedia, onAfterServerSync]
   );
 
   useEffect(() => {
@@ -83,34 +97,47 @@ export function LessonPracticeImagesField({
     async (slots: PendingSlot[]) => {
       if (!slots.length) return;
       const errors: string[] = [];
-      let successCount = 0;
+      let successImages = 0;
+      let successFiles = 0;
 
       for (const slot of slots) {
         try {
-          const url = await uploadLessonImage(slot.file);
-          URL.revokeObjectURL(slot.previewUrl);
-          setPendingSlots((prev) => prev.filter((s) => s.id !== slot.id));
-
-          const next = [...imagesRef.current, url];
-          imagesRef.current = next;
-          onImagesChange(next);
-
-          if (persistLessonId) {
-            await persistImages(next);
+          if (slot.kind === 'image') {
+            const url = await uploadLessonImage(slot.file);
+            const nextImages = [...imagesRef.current, url];
+            imagesRef.current = nextImages;
+            onImagesChange(nextImages);
+            if (persistLessonId) {
+              await persistMedia(nextImages, attachmentsRef.current);
+            }
+            successImages += 1;
+          } else {
+            if (!onAttachmentsChange) {
+              throw new Error('File attachments are not configured in this form.');
+            }
+            const url = await uploadLessonFile(slot.file);
+            const nextAttachments = [...attachmentsRef.current, url];
+            attachmentsRef.current = nextAttachments;
+            onAttachmentsChange(nextAttachments);
+            if (persistLessonId) {
+              await persistMedia(imagesRef.current, nextAttachments);
+            }
+            successFiles += 1;
           }
-          successCount += 1;
         } catch (err) {
-          URL.revokeObjectURL(slot.previewUrl);
-          setPendingSlots((prev) => prev.filter((s) => s.id !== slot.id));
-          const name = slot.file.name || 'image';
+          const name = slot.file.name || 'file';
           errors.push(`${name}: ${err instanceof Error ? err.message : 'failed'}`);
+        } finally {
+          if (slot.previewUrl) URL.revokeObjectURL(slot.previewUrl);
+          setPendingSlots((prev) => prev.filter((s) => s.id !== slot.id));
         }
       }
 
-      if (successCount > 0) {
-        toast.success(
-          `${successCount} image${successCount !== 1 ? 's' : ''} uploaded${persistLessonId ? ' and saved' : ''}.`
-        );
+      if (successImages > 0 || successFiles > 0) {
+        const parts: string[] = [];
+        if (successImages) parts.push(`${successImages} image${successImages !== 1 ? 's' : ''}`);
+        if (successFiles) parts.push(`${successFiles} file${successFiles !== 1 ? 's' : ''}`);
+        toast.success(`${parts.join(' and ')} uploaded${persistLessonId ? ' and saved' : ''}.`);
         if (persistLessonId) {
           await onAfterServerSync?.();
         }
@@ -120,25 +147,19 @@ export function LessonPracticeImagesField({
         toast.error(errors.length > 4 ? `${lines} · …` : `Upload failed: ${lines}`);
       }
     },
-    [onImagesChange, persistImages, persistLessonId, onAfterServerSync]
+    [onImagesChange, onAttachmentsChange, persistLessonId, persistMedia, onAfterServerSync]
   );
 
   const enqueueFiles = useCallback(
     (rawFiles: File[]) => {
-      const fileArray = rawFiles.filter(looksLikeImageFile);
-      if (!fileArray.length) {
-        toast.warning('No supported image files in that selection.');
-        return;
-      }
-
-      const slots: PendingSlot[] = fileArray.map((file) => ({
-        id: crypto.randomUUID(),
-        previewUrl: URL.createObjectURL(file),
-        file,
-      }));
+      if (!rawFiles.length) return;
+      const slots: PendingSlot[] = rawFiles.map((file) =>
+        looksLikeImageFile(file)
+          ? { id: crypto.randomUUID(), file, kind: 'image', previewUrl: URL.createObjectURL(file) }
+          : { id: crypto.randomUUID(), file, kind: 'file' }
+      );
 
       setPendingSlots((prev) => [...prev, ...slots]);
-
       uploadChainRef.current = uploadChainRef.current
         .then(() => processSlots(slots))
         .catch((err) => console.error('[LessonPracticeImagesField]', err));
@@ -149,7 +170,7 @@ export function LessonPracticeImagesField({
   useEffect(() => {
     return () => {
       for (const s of pendingSlotsCleanupRef.current) {
-        URL.revokeObjectURL(s.previewUrl);
+        if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
       }
     };
   }, []);
@@ -175,14 +196,12 @@ export function LessonPracticeImagesField({
     const next = [...images];
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
-    imagesRef.current = next;
-    void commitListChange(next);
+    void commitImageListChange(next);
   };
 
   const removeAt = (index: number) => {
     const next = images.filter((_, i) => i !== index);
-    imagesRef.current = next;
-    void commitListChange(next);
+    void commitImageListChange(next);
   };
 
   const uploading = pendingSlots.length > 0;
@@ -194,10 +213,9 @@ export function LessonPracticeImagesField({
       <div className="flex items-start gap-2 text-sm text-gray-700">
         <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" aria-hidden />
         <div>
-          <strong>Practice / project images</strong>
+          <strong>Practice media uploads</strong>
           <p className="mt-0.5 font-normal text-xs text-gray-500">
-            Previews appear instantly; each file uploads to the server (Cloudinary when configured). Order matches what
-            learners see.
+            Drop images, PDF, DOC, PPT, or Excel files for instant local preview, then upload to the server.
           </p>
         </div>
       </div>
@@ -208,7 +226,7 @@ export function LessonPracticeImagesField({
       )}
       {persistLessonId && (
         <p className="rounded-md border border-green-200/80 bg-green-50 px-2 py-1.5 text-xs text-green-950/90">
-          Saved images update on the lesson as each upload completes. Reorder applies to finished images only.
+          Uploaded items save to this lesson as each upload completes.
         </p>
       )}
       <input
@@ -223,7 +241,7 @@ export function LessonPracticeImagesField({
       />
       <div
         role="region"
-        aria-label="Image upload area"
+        aria-label="Media upload area"
         onDragEnter={(e) => {
           e.preventDefault();
           if (!disabled) setDragActive(true);
@@ -243,11 +261,11 @@ export function LessonPracticeImagesField({
       >
         <Upload className="h-8 w-8 text-gray-400" aria-hidden />
         <div className="text-center text-sm text-gray-700">
-          <span className="block">Drop image files here for instant preview</span>
+          <span className="block">Drop image/files here for instant preview</span>
           <span className="text-xs text-gray-500">then upload to the server</span>
         </div>
         <Button type="button" variant="secondary" size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>
-          Choose images
+          Choose media
         </Button>
       </div>
       {(images.length > 0 || pendingSlots.length > 0) && (
@@ -318,12 +336,15 @@ export function LessonPracticeImagesField({
           ))}
           {pendingSlots.map((slot, pIndex) => (
             <li key={slot.id} className="relative">
-              <div className="relative overflow-hidden rounded-lg border border-blue-200 bg-gray-100">
-                <img
-                  src={slot.previewUrl}
-                  alt=""
-                  className="h-28 w-full object-cover sm:h-32"
-                />
+              <div className="relative flex h-28 w-full items-center justify-center overflow-hidden rounded-lg border border-blue-200 bg-gray-100 sm:h-32">
+                {slot.kind === 'image' && slot.previewUrl ? (
+                  <img src={slot.previewUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-1 text-gray-700">
+                    <FileText className="h-8 w-8" aria-hidden />
+                    <span className="max-w-[90%] truncate px-2 text-xs font-medium">{slot.file.name}</span>
+                  </div>
+                )}
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/45 text-white">
                   <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
                   <span className="px-2 text-center text-xs font-medium leading-tight">Uploading to server…</span>

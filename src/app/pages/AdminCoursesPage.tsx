@@ -750,6 +750,8 @@ export default function AdminCoursesPage() {
                 <LessonPracticeImagesField
                   images={lessonImages}
                   onImagesChange={setLessonImages}
+                  attachments={lessonAttachments}
+                  onAttachmentsChange={setLessonAttachments}
                   persistLessonId={editingItem?.id ?? null}
                   onAfterServerSync={() => refreshData({ silent: true })}
                   onBusyChange={setPracticeImagesBusy}
