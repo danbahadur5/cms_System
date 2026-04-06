@@ -13,10 +13,17 @@ import { Course, Topic, Lesson } from './models.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SERVER_ROOT = path.join(__dirname, '..');
-const UPLOADS_DIR = path.join(SERVER_ROOT, 'uploads');
+const IS_VERCEL = Boolean(process.env.VERCEL);
+/** Vercel serverless FS is read-only except /tmp */
+const UPLOADS_DIR = IS_VERCEL ? '/tmp/course-management-uploads' : path.join(SERVER_ROOT, 'uploads');
 
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
+} catch (e) {
+  // Avoid crashing at module-load on serverless readonly environments.
+  console.error('[uploads] failed to initialize upload directory:', e);
 }
 
 function extensionForMime(mime) {
@@ -35,7 +42,6 @@ function extensionForMime(mime) {
 }
 
 const PORT = Number(process.env.PORT) || 4000;
-const IS_VERCEL = Boolean(process.env.VERCEL);
 const NODE_ENV = trimEnvQuotes(process.env.NODE_ENV || 'development');
 const IS_PROD = NODE_ENV === 'production';
 const MONGODB_URI =
