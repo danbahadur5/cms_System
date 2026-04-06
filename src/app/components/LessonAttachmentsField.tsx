@@ -107,14 +107,6 @@ export function LessonAttachmentsField({
     onBusyChange?.(pending.length > 0);
   }, [pending.length, onBusyChange]);
 
-  useEffect(() => {
-    return () => {
-      for (const p of pendingCleanupRef.current) {
-        if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
-      }
-    };
-  }, []);
-
   const uploadChainRef = useRef(Promise.resolve());
 
   const persist = useCallback(
@@ -158,7 +150,7 @@ export function LessonAttachmentsField({
     [onAfterServerSync, onAttachmentsChange, persist, persistLessonId]
   );
 
-  const enqueue = (files: File[]) => {
+  const enqueue = useCallback((files: File[]) => {
     if (!files.length) return;
     const jobs = files.map((file) => ({
       id: crypto.randomUUID(),
@@ -170,7 +162,30 @@ export function LessonAttachmentsField({
     uploadChainRef.current = uploadChainRef.current
       .then(() => processPending(jobs))
       .catch((err) => console.error('[LessonAttachmentsField]', err));
-  };
+  }, [processPending]);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (disabled) return;
+      const items = Array.from(e.clipboardData?.items || []);
+      const files: File[] = [];
+      for (const item of items) {
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        enqueue(files);
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+      for (const p of pendingCleanupRef.current) {
+        if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+      }
+    };
+  }, [disabled, enqueue]);
 
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

@@ -168,12 +168,27 @@ export function LessonPracticeImagesField({
   );
 
   useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (disabled) return;
+      const items = Array.from(e.clipboardData?.items || []);
+      const files: File[] = [];
+      for (const item of items) {
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        enqueueFiles(files);
+      }
+    };
+    window.addEventListener('paste', handlePaste);
     return () => {
+      window.removeEventListener('paste', handlePaste);
       for (const s of pendingSlotsCleanupRef.current) {
         if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
       }
     };
-  }, []);
+  }, [disabled, enqueueFiles]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

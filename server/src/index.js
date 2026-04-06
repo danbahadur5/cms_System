@@ -229,8 +229,8 @@ function createRateLimiter({ windowMs, max, keyPrefix }) {
   };
 }
 
-const authLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, keyPrefix: 'auth' });
-const uploadLimiter = createRateLimiter({ windowMs: 5 * 60 * 1000, max: 60, keyPrefix: 'upload' });
+const authLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 50, keyPrefix: 'auth' });
+const uploadLimiter = createRateLimiter({ windowMs: 5 * 60 * 1000, max: 200, keyPrefix: 'upload' });
 
 /** Ensure DB is ready for each request in serverless mode. */
 app.use(async (_req, res, next) => {
