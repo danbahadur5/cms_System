@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "seed": "node src/seed.js"
+    "seed": "node src/seed.js",
+    "build": "npm run build --prefix ../"
   },
   "dependencies": {
     "cloudinary": "^2.5.1",
