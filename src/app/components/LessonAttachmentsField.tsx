@@ -1,6 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
-import { FileArchive, FileImage, FileSpreadsheet, FileText, FileType2, Loader2, Trash2, Upload } from 'lucide-react';
+import {
+  FileArchive,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  FileType2,
+  Loader2,
+  Presentation,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadLessonFile, updateLesson } from '../utils/courseService';
 import { resolveMediaUrl } from '../utils/api';
@@ -68,6 +78,8 @@ function FileKindBadge({ kind }: { kind: ReturnType<typeof inferKind> }) {
 function FileKindIcon({ kind }: { kind: ReturnType<typeof inferKind> }) {
   if (kind === 'image') return <FileImage className="h-5 w-5 text-indigo-600" aria-hidden />;
   if (kind === 'pdf') return <FileType2 className="h-5 w-5 text-red-600" aria-hidden />;
+  if (kind === 'doc') return <FileText className="h-5 w-5 text-blue-600" aria-hidden />;
+  if (kind === 'ppt') return <Presentation className="h-5 w-5 text-orange-600" aria-hidden />;
   if (kind === 'xls') return <FileSpreadsheet className="h-5 w-5 text-emerald-600" aria-hidden />;
   if (kind === 'archive') return <FileArchive className="h-5 w-5 text-violet-600" aria-hidden />;
   return <FileText className="h-5 w-5 text-slate-600" aria-hidden />;
@@ -152,7 +164,7 @@ export function LessonAttachmentsField({
       id: crypto.randomUUID(),
       name: file.name || 'file',
       file,
-      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      previewUrl: inferKind(file.name || 'file', file.type) === 'image' ? URL.createObjectURL(file) : null,
     }));
     setPending((prev) => [...prev, ...jobs]);
     uploadChainRef.current = uploadChainRef.current
