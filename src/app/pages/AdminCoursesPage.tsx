@@ -883,23 +883,37 @@ export default function AdminCoursesPage() {
                     min="1"
                   />
                 </div>
-                <LessonPracticeImagesField
-                  images={lessonImages}
-                  onImagesChange={setLessonImages}
-                  attachments={lessonAttachments}
-                  onAttachmentsChange={setLessonAttachments}
-                  persistLessonId={editingItem?.id ?? null}
-                  onAfterServerSync={() => refreshData({ silent: true })}
-                  onBusyChange={setPracticeImagesBusy}
-                  onOpenLightbox={(urls, index) => setImageLightbox({ urls, index })}
-                />
-                <LessonAttachmentsField
-                  attachments={lessonAttachments}
-                  onAttachmentsChange={setLessonAttachments}
-                  persistLessonId={editingItem?.id ?? null}
-                  onAfterServerSync={() => refreshData({ silent: true })}
-                  onBusyChange={setAttachmentsBusy}
-                />
+
+                <div className="pt-4 border-t border-gray-100">
+                  <h4 className="text-sm font-semibold mb-3 text-gray-900 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    Lesson Media & Images
+                  </h4>
+                  <LessonPracticeImagesField
+                    images={lessonImages}
+                    onImagesChange={setLessonImages}
+                    attachments={lessonAttachments}
+                    onAttachmentsChange={setLessonAttachments}
+                    persistLessonId={editingItem?.id ?? null}
+                    onAfterServerSync={() => refreshData({ silent: true })}
+                    onBusyChange={setPracticeImagesBusy}
+                    onOpenLightbox={(urls, index) => setImageLightbox({ urls, index })}
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-gray-100">
+                  <h4 className="text-sm font-semibold mb-3 text-gray-900 flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Additional Files & Attachments
+                  </h4>
+                  <LessonAttachmentsField
+                    attachments={lessonAttachments}
+                    onAttachmentsChange={setLessonAttachments}
+                    persistLessonId={editingItem?.id ?? null}
+                    onAfterServerSync={() => refreshData({ silent: true })}
+                    onBusyChange={setAttachmentsBusy}
+                  />
+                </div>
               </>
             )}
           </div>

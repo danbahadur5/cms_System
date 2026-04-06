@@ -121,16 +121,21 @@ export function LessonAttachmentsField({
     async (jobs: PendingFile[]) => {
       const errors: string[] = [];
       let ok = 0;
+      
+      // Keep local copies of the current state during this batch process
+      let currentAttachments = [...attachmentsRef.current];
+
       for (const job of jobs) {
         try {
           const url = await uploadLessonFile(job.file);
           if (job.previewUrl) URL.revokeObjectURL(job.previewUrl);
           setPending((prev) => prev.filter((p) => p.id !== job.id));
 
-          const next = [...attachmentsRef.current, url];
-          attachmentsRef.current = next;
-          onAttachmentsChange(next);
-          if (persistLessonId) await persist(next);
+          currentAttachments = [...currentAttachments, url];
+          onAttachmentsChange(currentAttachments);
+          attachmentsRef.current = currentAttachments; // Keep ref updated for subsequent slots in this loop
+          
+          if (persistLessonId) await persist(currentAttachments);
           ok += 1;
         } catch (e) {
           if (job.previewUrl) URL.revokeObjectURL(job.previewUrl);
@@ -211,9 +216,9 @@ export function LessonAttachmentsField({
       <div className="flex items-start gap-2 text-sm text-gray-700">
         <FileText className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" aria-hidden />
         <div className="min-w-0">
-          <strong>Attachments (files)</strong>
+          <strong>Additional Lesson Files</strong>
           <p className="mt-0.5 text-xs text-gray-500">
-            Local previews appear immediately. Images show thumbnails; PDF/DOC/PPT/XLS show file tiles.
+            PDFs, documents, and other materials will be uploaded and stored securely.
           </p>
         </div>
       </div>
@@ -237,7 +242,7 @@ export function LessonAttachmentsField({
       >
         <div className="flex items-center gap-2 text-sm text-gray-700">
           <Upload className="h-4 w-4 text-gray-400" aria-hidden />
-          <span>{busy ? 'Uploading…' : 'Add lesson files'}</span>
+          <span>{busy ? 'Uploading to server...' : 'Upload lesson materials'}</span>
         </div>
         <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={() => inputRef.current?.click()}>
           Choose files
@@ -311,7 +316,7 @@ export function LessonAttachmentsField({
                 )}
                 <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 text-white">
                   <Loader2 className="h-4 w-4 animate-spin text-blue-200" aria-hidden />
-                  <span className="text-xs font-medium">Uploading…</span>
+                  <span className="text-xs font-medium">Uploading to Cloudinary...</span>
                 </div>
               </li>
             );

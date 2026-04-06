@@ -100,15 +100,20 @@ export function LessonPracticeImagesField({
       let successImages = 0;
       let successFiles = 0;
 
+      // Keep local copies of the current state during this batch process
+      let currentImages = [...imagesRef.current];
+      let currentAttachments = [...attachmentsRef.current];
+
       for (const slot of slots) {
         try {
           if (slot.kind === 'image') {
             const url = await uploadLessonImage(slot.file);
-            const nextImages = [...imagesRef.current, url];
-            imagesRef.current = nextImages;
-            onImagesChange(nextImages);
+            currentImages = [...currentImages, url];
+            onImagesChange(currentImages);
+            imagesRef.current = currentImages; // Keep ref updated for subsequent slots in this loop
+            
             if (persistLessonId) {
-              await persistMedia(nextImages, attachmentsRef.current);
+              await persistMedia(currentImages, currentAttachments);
             }
             successImages += 1;
           } else {
@@ -116,11 +121,12 @@ export function LessonPracticeImagesField({
               throw new Error('File attachments are not configured in this form.');
             }
             const url = await uploadLessonFile(slot.file);
-            const nextAttachments = [...attachmentsRef.current, url];
-            attachmentsRef.current = nextAttachments;
-            onAttachmentsChange(nextAttachments);
+            currentAttachments = [...currentAttachments, url];
+            onAttachmentsChange(currentAttachments);
+            attachmentsRef.current = currentAttachments; // Keep ref updated
+            
             if (persistLessonId) {
-              await persistMedia(imagesRef.current, nextAttachments);
+              await persistMedia(currentImages, currentAttachments);
             }
             successFiles += 1;
           }
@@ -228,9 +234,9 @@ export function LessonPracticeImagesField({
       <div className="flex items-start gap-2 text-sm text-gray-700">
         <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" aria-hidden />
         <div>
-          <strong>Practice media uploads</strong>
+          <strong>Lesson Media Uploads</strong>
           <p className="mt-0.5 font-normal text-xs text-gray-500">
-            Drop images, PDF, DOC, PPT, or Excel files for instant local preview, then upload to the server.
+            Images and practice files uploaded here will be stored in the backend and visible to students.
           </p>
         </div>
       </div>
@@ -276,8 +282,8 @@ export function LessonPracticeImagesField({
       >
         <Upload className="h-8 w-8 text-gray-400" aria-hidden />
         <div className="text-center text-sm text-gray-700">
-          <span className="block">Drop image/files here for instant preview</span>
-          <span className="text-xs text-gray-500">then upload to the server</span>
+          <span className="block">Drop images/files here to upload to the server</span>
+          <span className="text-xs text-gray-500">Instant preview will appear below</span>
         </div>
         <Button type="button" variant="secondary" size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>
           Choose media
@@ -362,7 +368,7 @@ export function LessonPracticeImagesField({
                 )}
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/45 text-white">
                   <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-                  <span className="px-2 text-center text-xs font-medium leading-tight">Uploading to server…</span>
+                  <span className="px-2 text-center text-xs font-medium leading-tight">Uploading to Cloudinary...</span>
                 </div>
               </div>
               <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">
