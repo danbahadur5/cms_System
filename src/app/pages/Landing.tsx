@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
-import { Button } from '../components/ui/button';
+import { useEffect, useState } from "react";
+import { Link } from "react-router";
+import { Button } from "../components/ui/button";
 import {
   ArrowRight,
   BookOpen,
@@ -10,8 +10,8 @@ import {
   GraduationCap,
   LayoutGrid,
   PenLine,
-} from 'lucide-react';
-import { fetchPublicStats } from '../utils/courseService';
+} from "lucide-react";
+import { fetchPublicStats } from "../utils/courseService";
 
 export default function Landing() {
   const [courseCount, setCourseCount] = useState(0);
@@ -33,34 +33,34 @@ export default function Landing() {
 
   const steps = [
     {
-      title: 'Choose a course',
-      text: 'Open the catalog and pick the program that fits what you want to learn.',
+      title: "Choose a course",
+      text: "Open the catalog and pick the program that fits what you want to learn.",
     },
     {
-      title: 'Open a topic',
-      text: 'Each course is split into topics—like chapters—so you always know where you are.',
+      title: "Open a topic",
+      text: "Each course is split into topics—like chapters—so you always know where you are.",
     },
     {
-      title: 'Follow the days',
-      text: 'Lessons are grouped by day with clear teaching, practice, and project steps.',
+      title: "Follow the days",
+      text: "Lessons are grouped by day with clear teaching, practice, and project steps.",
     },
   ] as const;
 
   const highlights = [
     {
       icon: LayoutGrid,
-      title: 'Simple layout',
-      text: 'Courses, topics, and lessons nest cleanly—no noisy sidebars or ads.',
+      title: "Simple layout",
+      text: "Courses, topics, and lessons nest cleanly—no noisy sidebars or ads.",
     },
     {
       icon: PenLine,
-      title: 'Practice built in',
-      text: 'See when to read, when to try, and when to build something real.',
+      title: "Practice built in",
+      text: "See when to read, when to try, and when to build something real.",
     },
     {
       icon: Clock,
-      title: 'Your pace',
-      text: 'Come back anytime; progress is easy to find from the course list.',
+      title: "Your pace",
+      text: "Come back anytime; progress is easy to find from the course list.",
     },
   ] as const;
 
@@ -76,15 +76,18 @@ export default function Landing() {
           <div className="grid items-center gap-12 lg:grid-cols-[1fr_minmax(0,420px)] lg:gap-16">
             <div>
               <p className="mb-5 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-600">
-                <GraduationCap className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+                <GraduationCap
+                  className="h-3.5 w-3.5 text-slate-500"
+                  aria-hidden
+                />
                 Learning Center
               </p>
               <h1 className="text-balance text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
                 Learn in order, without the clutter.
               </h1>
               <p className="mt-5 max-w-lg text-base leading-relaxed text-gray-600 sm:text-lg">
-                Browse courses like folders, open topics, and work through day-by-day lessons—all in one calm,
-                focused place.
+                Browse courses like folders, open topics, and work through
+                day-by-day lessons—all in one calm, focused place.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -114,23 +117,40 @@ export default function Landing() {
                 ) : courseCount > 0 ? (
                   <>
                     <span>
-                      <span className="font-semibold text-gray-800">{courseCount}</span> courses
+                      <span className="font-semibold text-gray-800">
+                        {courseCount}
+                      </span>{" "}
+                      courses
                     </span>
-                    <span className="hidden h-4 w-px bg-gray-200 sm:inline-block" aria-hidden />
+                    <span
+                      className="hidden h-4 w-px bg-gray-200 sm:inline-block"
+                      aria-hidden
+                    />
                     <span>
-                      <span className="font-semibold text-gray-800">{lessonCount}</span> lessons
+                      <span className="font-semibold text-gray-800">
+                        {lessonCount}
+                      </span>{" "}
+                      lessons
                     </span>
-                    <span className="hidden h-4 w-px bg-gray-200 sm:inline-block" aria-hidden />
+                    <span
+                      className="hidden h-4 w-px bg-gray-200 sm:inline-block"
+                      aria-hidden
+                    />
                     <span>Updated by your team</span>
                   </>
                 ) : (
-                  <span>New programs appear here as your team publishes them.</span>
+                  <span>
+                    New programs appear here as your team publishes them.
+                  </span>
                 )}
               </div>
             </div>
 
             {/* Decorative preview — suggests folder / course structure */}
-            <div className="relative mx-auto w-full max-w-sm lg:mx-0 lg:max-w-none" aria-hidden>
+            <div
+              className="relative mx-auto w-full max-w-sm lg:mx-0 lg:max-w-none"
+              aria-hidden
+            >
               <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm ring-1 ring-gray-100">
                 <div className="mb-3 flex items-center gap-2 text-xs font-medium text-gray-500">
                   <FolderOpen className="h-4 w-4 text-blue-600" />
@@ -138,18 +158,34 @@ export default function Landing() {
                 </div>
                 <div className="space-y-2">
                   {[
-                    { name: 'Sample course', tone: 'bg-blue-500', sub: '3 topics' },
-                    { name: 'Another track', tone: 'bg-emerald-500', sub: '5 topics' },
-                    { name: 'Skills path', tone: 'bg-violet-500', sub: '2 topics' },
+                    {
+                      name: "Sample course",
+                      tone: "bg-blue-500",
+                      sub: "3 topics",
+                    },
+                    {
+                      name: "Another track",
+                      tone: "bg-emerald-500",
+                      sub: "5 topics",
+                    },
+                    {
+                      name: "Skills path",
+                      tone: "bg-violet-500",
+                      sub: "2 topics",
+                    },
                   ].map((row) => (
                     <div
                       key={row.name}
                       className="flex items-center justify-between rounded-xl border border-gray-100 bg-slate-50/80 px-3 py-2.5"
                     >
                       <div className="flex items-center gap-3">
-                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${row.tone}`} />
+                        <span
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${row.tone}`}
+                        />
                         <div>
-                          <p className="text-sm font-medium text-gray-800">{row.name}</p>
+                          <p className="text-sm font-medium text-gray-800">
+                            {row.name}
+                          </p>
                           <p className="text-xs text-gray-500">{row.sub}</p>
                         </div>
                       </div>
@@ -157,7 +193,9 @@ export default function Landing() {
                     </div>
                   ))}
                 </div>
-                <p className="mt-4 text-center text-xs text-gray-400">Preview only — your real catalog lives under Courses</p>
+                <p className="mt-4 text-center text-xs text-gray-400">
+                  Preview only — your real catalog lives under Courses
+                </p>
               </div>
             </div>
           </div>
@@ -167,9 +205,12 @@ export default function Landing() {
       {/* Highlights */}
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">Built for learners, not dashboards</h2>
+          <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">
+            Built for learners, not dashboards
+          </h2>
           <p className="mt-3 text-sm leading-relaxed text-gray-600 sm:text-base">
-            Fewer distractions, clearer steps—so you spend time learning, not hunting for the next page.
+            Fewer distractions, clearer steps—so you spend time learning, not
+            hunting for the next page.
           </p>
         </div>
         <ul className="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-3 sm:gap-6">
@@ -181,8 +222,12 @@ export default function Landing() {
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
                 <Icon className="h-5 w-5" aria-hidden />
               </div>
-              <h3 className="text-[15px] font-semibold text-gray-900">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-600">{text}</p>
+              <h3 className="text-[15px] font-semibold text-gray-900">
+                {title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                {text}
+              </p>
             </li>
           ))}
         </ul>
@@ -195,8 +240,12 @@ export default function Landing() {
       >
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto max-w-xl text-center">
-            <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">How it works</h2>
-            <p className="mt-3 text-sm text-gray-600 sm:text-base">Three steps from the home page to your next lesson.</p>
+            <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">
+              How it works
+            </h2>
+            <p className="mt-3 text-sm text-gray-600 sm:text-base">
+              Three steps from the home page to your next lesson.
+            </p>
           </div>
           <ol className="mx-auto mt-12 grid gap-6 sm:grid-cols-3 sm:gap-8">
             {steps.map((step, i) => (
@@ -215,8 +264,12 @@ export default function Landing() {
                     />
                   )}
                 </div>
-                <h3 className="text-[15px] font-semibold text-gray-900">{step.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-600">{step.text}</p>
+                <h3 className="text-[15px] font-semibold text-gray-900">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                  {step.text}
+                </p>
               </li>
             ))}
           </ol>
@@ -227,9 +280,12 @@ export default function Landing() {
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div className="rounded-2xl border border-gray-200 bg-slate-900 px-6 py-12 text-center sm:px-10 sm:py-14">
           <BookOpen className="mx-auto h-10 w-10 text-slate-400" aria-hidden />
-          <h2 className="mt-4 text-xl font-semibold text-white sm:text-2xl">Start with any course</h2>
+          <h2 className="mt-4 text-xl font-semibold text-white sm:text-2xl">
+            Start with any course
+          </h2>
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-400 sm:text-base">
-            Open the full list, pick a program, and jump into the first topic when you are ready.
+            Open the full list, pick a program, and jump into the first topic
+            when you are ready.
           </p>
           <div className="mt-8">
             <Link to="/courses">
@@ -249,16 +305,22 @@ export default function Landing() {
       <footer className="border-t border-gray-200 bg-white px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm font-medium text-gray-900">Learning Center</p>
+            <p className="text-sm font-medium text-gray-900">Life Computer</p>
             <p className="mt-1 max-w-xs text-sm text-gray-500">
               A simple home for courses, topics, and day-by-day lessons.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-6 text-sm">
-            <Link to="/courses" className="text-gray-600 transition-colors hover:text-gray-900">
+            <Link
+              to="/courses"
+              className="text-gray-600 transition-colors hover:text-gray-900"
+            >
               Courses
             </Link>
-            <Link to="/admin/login" className="text-gray-600 transition-colors hover:text-gray-900">
+            <Link
+              to="/admin/login"
+              className="text-gray-600 transition-colors hover:text-gray-900"
+            >
               Staff sign in
             </Link>
           </div>

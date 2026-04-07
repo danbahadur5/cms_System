@@ -1,17 +1,17 @@
-import { Link, useNavigate } from 'react-router';
-import { useState, useEffect } from 'react';
-import { Menu, X, ChevronDown, LayoutDashboard, LogOut } from 'lucide-react';
-import type { Course } from '../types/course';
-import { fetchCourses } from '../utils/courseService';
-import { useAdminAuth } from '../contexts/AdminAuthContext';
-import { Button } from './ui/button';
-import { BrandLogo } from './BrandLogo';
+import { Link, useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { Menu, X, ChevronDown, LayoutDashboard, LogOut } from "lucide-react";
+import type { Course } from "../types/course";
+import { fetchCourses } from "../utils/courseService";
+import { useAdminAuth } from "../contexts/AdminAuthContext";
+import { Button } from "./ui/button";
+import { BrandLogo } from "./BrandLogo";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+} from "./ui/dropdown-menu";
 
 export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -20,12 +20,14 @@ export function Navigation() {
   const { adminEmail, signOut } = useAdminAuth();
 
   useEffect(() => {
-    fetchCourses().then(setCourses).catch(() => setCourses([]));
+    fetchCourses()
+      .then(setCourses)
+      .catch(() => setCourses([]));
   }, []);
 
   function handleStaffSignOut() {
     signOut();
-    navigate('/');
+    navigate("/");
     setMobileMenuOpen(false);
   }
 
@@ -34,23 +36,29 @@ export function Navigation() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="group flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-blue-50/60">
+          <Link
+            to="/"
+            className="group flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-blue-50/60"
+          >
             <BrandLogo className="transition-transform duration-200 group-hover:scale-[1.02]" />
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-sm font-medium hover:text-blue-600 transition-colors">
+            <Link
+              to="/"
+              className="text-sm font-medium hover:text-blue-600 transition-colors"
+            >
               Home
             </Link>
-            
+
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium hover:text-blue-600 transition-colors">
+              <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium hover:text-blue-600 transition-colors cursor-pointer">
                 Courses
                 <ChevronDown className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuItem onClick={() => navigate('/courses')}>
+                <DropdownMenuItem onClick={() => navigate("/courses")}>
                   <span className="font-medium">All Courses</span>
                 </DropdownMenuItem>
                 {courses.map((course) => (
@@ -73,13 +81,21 @@ export function Navigation() {
                   <LayoutDashboard className="h-4 w-4" aria-hidden />
                   Dashboard
                 </Link>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-gray-600" onClick={handleStaffSignOut}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-gray-600"
+                  onClick={handleStaffSignOut}
+                >
                   <LogOut className="h-4 w-4" aria-hidden />
                   Sign out
                 </Button>
               </>
             ) : (
-              <Link to="/admin/login" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+              <Link
+                to="/admin/login"
+                className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
+              >
                 Staff sign in
               </Link>
             )}
@@ -90,7 +106,11 @@ export function Navigation() {
             className="md:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {mobileMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
           </button>
         </div>
 
