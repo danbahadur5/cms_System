@@ -350,6 +350,8 @@ app.get('/api/health', (_req, res) => {
     env: NODE_ENV,
     vercel: IS_VERCEL,
     mongo: mongoose.connection.readyState === 1,
+    cloudinary: cloudinaryReady,
+    cloudinaryCloud: cloudName || null,
     uptimeSec: Math.round(process.uptime()),
   });
 });
@@ -671,19 +673,25 @@ app.post('/api/upload', uploadLimiter, requireAdmin, uploadSingleFile, async (re
     if (cloudinaryReady) {
       try {
         const folder = trimEnvQuotes(process.env.CLOUDINARY_FOLDER || '') || 'course-management';
+        console.log(`[upload] sending to Cloudinary folder: ${folder}`);
         const result = await uploadBufferToCloudinary(req.file.buffer, {
           folder,
-          resource_type: 'image',
-          /** Helps trace uploads; safe characters only */
+          resource_type: 'auto',
           public_id: `lesson-${crypto.randomUUID()}`,
+          access_mode: 'public',
         });
+        console.log(`[upload] Cloudinary success: ${result.secure_url}`);
         return res.json({
           url: result.secure_url,
           storage: 'cloudinary',
           publicId: result.public_id,
         });
       } catch (cloudErr) {
-        console.warn('[upload] Cloudinary error, saving locally instead:', cloudErr?.message || cloudErr);
+        console.error('[upload] Cloudinary error:', cloudErr?.message || cloudErr);
+        // If Cloudinary is configured but fails, we should return an error to let the user know
+        return res.status(500).json({ 
+          error: `Cloudinary upload failed: ${cloudErr?.message || 'Unknown error'}.` 
+        });
       }
     }
 
@@ -705,13 +713,16 @@ app.post('/api/upload/file', uploadLimiter, requireAdmin, uploadSingleAnyFile, a
 
     if (cloudinaryReady) {
       try {
-        const folder =
-          trimEnvQuotes(process.env.CLOUDINARY_FOLDER || '') || 'course-management';
+        const folder = trimEnvQuotes(process.env.CLOUDINARY_FOLDER || '') || 'course-management';
+        const fileFolder = `${folder}/files`;
+        console.log(`[upload:file] sending to Cloudinary folder: ${fileFolder}`);
         const result = await uploadBufferToCloudinary(req.file.buffer, {
-          folder: `${folder}/files`,
-          resource_type: 'raw',
+          folder: fileFolder,
+          resource_type: 'auto',
           public_id: `file-${crypto.randomUUID()}`,
+          access_mode: 'public',
         });
+        console.log(`[upload:file] Cloudinary success: ${result.secure_url}`);
         return res.json({
           url: result.secure_url,
           storage: 'cloudinary',
@@ -721,7 +732,10 @@ app.post('/api/upload/file', uploadLimiter, requireAdmin, uploadSingleAnyFile, a
           bytes: req.file.size,
         });
       } catch (cloudErr) {
-        console.warn('[upload:file] Cloudinary error, saving locally instead:', cloudErr?.message || cloudErr);
+        console.error('[upload:file] Cloudinary error:', cloudErr?.message || cloudErr);
+        return res.status(500).json({ 
+          error: `Cloudinary upload failed: ${cloudErr?.message || 'Unknown error'}.` 
+        });
       }
     }
 
