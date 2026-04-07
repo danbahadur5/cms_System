@@ -49,7 +49,7 @@ export default function CourseDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen py-12 px-6 sm:px-6 lg:px-8 bg-gray-50">
+    <div className="min-h-screen py-12 px-6 sm:px-6 lg:px-20 bg-gray-50">
       <div className="mx-auto max-w-7xl">
         <Link
           to="/courses"

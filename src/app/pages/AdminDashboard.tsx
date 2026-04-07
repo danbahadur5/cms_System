@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { FolderOpen, BookOpen, FileText, Settings, LogOut } from 'lucide-react';
-import { fetchAdminTree } from '../utils/courseService';
-import { useAdminAuth } from '../contexts/AdminAuthContext';
-import { Button } from '../components/ui/button';
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { FolderOpen, BookOpen, FileText, Settings, LogOut } from "lucide-react";
+import { fetchAdminTree } from "../utils/courseService";
+import { useAdminAuth } from "../contexts/AdminAuthContext";
+import { Button } from "../components/ui/button";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -28,30 +28,30 @@ export default function AdminDashboard() {
 
   const stats = [
     {
-      title: 'Total Courses',
+      title: "Total Courses",
       value: courseCount,
       icon: FolderOpen,
-      color: 'bg-blue-500',
-      link: '/admin/courses',
+      color: "bg-blue-500",
+      link: "/admin/courses",
     },
     {
-      title: 'Total Topics',
+      title: "Total Topics",
       value: topicCount,
       icon: BookOpen,
-      color: 'bg-green-500',
-      link: '/admin/courses',
+      color: "bg-green-500",
+      link: "/admin/courses",
     },
     {
-      title: 'Total Lessons',
+      title: "Total Lessons",
       value: lessonCount,
       icon: FileText,
-      color: 'bg-purple-500',
-      link: '/admin/courses',
+      color: "bg-purple-500",
+      link: "/admin/courses",
     },
   ];
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-20 bg-gray-50">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-8">
@@ -61,10 +61,13 @@ export default function AdminDashboard() {
               <div>
                 <h1>Admin Dashboard</h1>
                 {adminEmail && (
-                  <p className="mt-1 text-sm text-gray-500">Signed in as {adminEmail}</p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Signed in as {adminEmail}
+                  </p>
                 )}
                 <p className="mt-2 text-gray-600">
-                  Manage your courses, topics, and lessons. Add, edit, or delete content as needed.
+                  Manage your courses, topics, and lessons. Add, edit, or delete
+                  content as needed.
                 </p>
               </div>
             </div>
@@ -74,7 +77,7 @@ export default function AdminDashboard() {
               className="shrink-0 gap-2"
               onClick={() => {
                 signOut();
-                navigate('/admin/login', { replace: true });
+                navigate("/admin/login", { replace: true });
               }}
             >
               <LogOut className="h-4 w-4" aria-hidden />
@@ -114,7 +117,9 @@ export default function AdminDashboard() {
             >
               <FolderOpen className="h-8 w-8 text-blue-600 mb-2" />
               <h3 className="font-semibold mb-1">Manage Courses</h3>
-              <p className="text-sm text-gray-600">Create, edit, or delete courses</p>
+              <p className="text-sm text-gray-600">
+                Create, edit, or delete courses
+              </p>
             </Link>
 
             <Link

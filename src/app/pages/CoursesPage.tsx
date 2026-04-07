@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { fetchCourses } from '../utils/courseService';
-import type { Course } from '../types/course';
-import { FolderCard } from '../components/FolderCard';
-import { BookOpen } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { fetchCourses } from "../utils/courseService";
+import type { Course } from "../types/course";
+import { FolderCard } from "../components/FolderCard";
+import { BookOpen } from "lucide-react";
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -16,7 +16,7 @@ export default function CoursesPage() {
   }, []);
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-20  bg-gray-50">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
@@ -24,7 +24,8 @@ export default function CoursesPage() {
             <h1>All Courses</h1>
           </div>
           <p className="text-gray-600">
-            Select a course to explore topics and lessons. Each course is organized like a folder for easy navigation.
+            Select a course to explore topics and lessons. Each course is
+            organized like a folder for easy navigation.
           </p>
         </div>
 
@@ -46,7 +47,10 @@ export default function CoursesPage() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-gray-500">No courses available yet. Sign in as staff to add courses in the admin panel.</p>
+            <p className="text-gray-500">
+              No courses available yet. Sign in as staff to add courses in the
+              admin panel.
+            </p>
           </div>
         )}
       </div>
