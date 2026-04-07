@@ -37,8 +37,13 @@ function extensionForMime(mime) {
     'image/bmp': '.bmp',
     'image/heic': '.heic',
     'image/heif': '.heif',
+    'application/pdf': '.pdf',
+    'application/vnd.ms-powerpoint': '.ppt',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
   };
-  return map[mime] || '.img';
+  return map[mime] || '.file';
 }
 
 const PORT = Number(process.env.PORT) || 4000;
@@ -245,21 +250,33 @@ app.use(async (_req, res, next) => {
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 12 * 1024 * 1024 },
+  limits: { fileSize: 60 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+      return;
+    }
+    // Support for PDF, PPT, Excel
+    const allowedMimes = [
+      'application/pdf',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+    if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
       return;
     }
     const name = (file.originalname || '').toLowerCase();
     if (
       file.mimetype === 'application/octet-stream' &&
-      /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/i.test(name)
+      /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg|pdf|ppt|pptx|xls|xlsx)$/i.test(name)
     ) {
       cb(null, true);
       return;
     }
-    cb(new Error('Only image files are allowed (jpg, png, gif, webp, heic, etc.)'));
+    cb(new Error('Only image files, PDFs, PowerPoint presentations, and Excel spreadsheets are allowed (jpg, png, gif, webp, heic, pdf, ppt, pptx, xls, xlsx, etc.)'));
   },
 });
 
@@ -269,12 +286,12 @@ function uploadSingleFile(req, res, next) {
     if (err instanceof multer.MulterError || err?.name === 'MulterError') {
       const message =
         err.code === 'LIMIT_FILE_SIZE'
-          ? 'File too large (max 12 MB).'
+          ? 'File too large (max 60 MB).'
           : err.message || 'Upload error';
       return res.status(400).json({ error: message });
     }
     const msg = typeof err.message === 'string' ? err.message : '';
-    if (msg.startsWith('Only image')) {
+    if (msg.startsWith('Only ')) {
       return res.status(400).json({ error: msg });
     }
     console.error('[upload] multer:', err);
@@ -284,7 +301,7 @@ function uploadSingleFile(req, res, next) {
 
 const fileUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 },
+  limits: { fileSize: 60 * 1024 * 1024 },
 });
 
 function uploadSingleAnyFile(req, res, next) {
@@ -293,7 +310,7 @@ function uploadSingleAnyFile(req, res, next) {
     if (err instanceof multer.MulterError || err?.name === 'MulterError') {
       const message =
         err.code === 'LIMIT_FILE_SIZE'
-          ? 'File too large (max 25 MB).'
+          ? 'File too large (max 60 MB).'
           : err.message || 'Upload error';
       return res.status(400).json({ error: message });
     }
