@@ -80,7 +80,7 @@ export default function Landing() {
                   className="h-3.5 w-3.5 text-slate-500"
                   aria-hidden
                 />
-                Learning Center
+                Course Hub
               </p>
               <h1 className="text-balance text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
                 Learn in order, without the clutter.
