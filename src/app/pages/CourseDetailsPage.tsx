@@ -59,14 +59,14 @@ export default function CourseDetailsPage() {
           Back to All Courses
         </Link>
 
-        <div className="mb-8 bg-white p-6 rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div className="mb-8 bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-100 overflow-hidden">
           <div className="flex flex-col md:flex-row gap-6">
             {course.image ? (
               <div className="w-full md:w-48 aspect-video md:aspect-square rounded-lg overflow-hidden border border-gray-100 shadow-sm shrink-0">
                 <img
                   src={resolveMediaUrl(course.image)}
                   alt={course.name}
-                  className="w-full h-full object-cover"
+                  className="w-full  h-full object-cover"
                 />
               </div>
             ) : (
@@ -82,7 +82,7 @@ export default function CourseDetailsPage() {
             )}
             <div className="flex-1 min-w-0">
               <h1 className="text-3xl font-bold mb-3">{course.name}</h1>
-              <p className="text-gray-600 text-lg leading-relaxed">
+              <p className="text-gray-400 text-lg leading-relaxed">
                 {course.description}
               </p>
             </div>

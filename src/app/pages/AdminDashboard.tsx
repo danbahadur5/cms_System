@@ -71,18 +71,6 @@ export default function AdminDashboard() {
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0 gap-2"
-              onClick={() => {
-                signOut();
-                navigate("/admin/login", { replace: true });
-              }}
-            >
-              <LogOut className="h-4 w-4" aria-hidden />
-              Sign out
-            </Button>
           </div>
         </div>
 
