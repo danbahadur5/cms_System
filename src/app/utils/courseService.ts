@@ -70,7 +70,7 @@ export async function fetchAdminTree(): Promise<AdminTree> {
 }
 
 export async function createCourse(
-  body: Pick<Course, 'name' | 'description' | 'icon' | 'color'>
+  body: Pick<Course, 'name' | 'description' | 'icon' | 'color' | 'order'>
 ): Promise<Course> {
   return send<Course>('/api/courses', { method: 'POST', body: JSON.stringify(body) });
 }

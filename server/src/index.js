@@ -94,6 +94,7 @@ function serializeCourse(doc) {
     icon: o.icon,
     color: o.color,
     image: o.image,
+    order: o.order,
     createdAt: (o.createdAt instanceof Date ? o.createdAt : new Date(o.createdAt)).toISOString(),
   };
 }
@@ -409,7 +410,7 @@ app.get('/api/auth/me', requireAdmin, (req, res) => {
 /** Public: all courses */
 app.get('/api/courses', async (_req, res) => {
   try {
-    const list = await Course.find().sort({ createdAt: -1 }).exec();
+    const list = await Course.find().sort({ order: 1, createdAt: -1 }).exec();
     res.json(list.map(serializeCourse));
   } catch (e) {
     res.status(500).json({ error: e.message || 'Failed to list courses' });
@@ -472,7 +473,7 @@ app.get('/api/topics/:topicId/lessons', async (req, res) => {
 app.get('/api/admin/tree', requireAdmin, async (_req, res) => {
   try {
     const [courses, topics, lessons] = await Promise.all([
-      Course.find().sort({ createdAt: -1 }).exec(),
+      Course.find().sort({ order: 1, createdAt: -1 }).exec(),
       Topic.find().sort({ order: 1 }).exec(),
       Lesson.find().sort({ day: 1, order: 1 }).exec(),
     ]);
@@ -488,7 +489,7 @@ app.get('/api/admin/tree', requireAdmin, async (_req, res) => {
 
 app.post('/api/courses', requireAdmin, async (req, res) => {
   try {
-    const { name, description, icon, color, image } = req.body || {};
+    const { name, description, icon, color, order, image } = req.body || {};
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'name is required' });
     }
@@ -498,6 +499,7 @@ app.post('/api/courses', requireAdmin, async (req, res) => {
       icon: String(icon || 'Briefcase'),
       color: String(color || '#4299E1'),
       image: String(image || ''),
+      order: Number(order) || 1,
     });
     res.status(201).json(serializeCourse(course));
   } catch (e) {
@@ -517,6 +519,7 @@ app.patch('/api/courses/:id', requireAdmin, async (req, res) => {
     if (req.body.icon != null) updates.icon = String(req.body.icon);
     if (req.body.color != null) updates.color = String(req.body.color);
     if (req.body.image != null) updates.image = String(req.body.image);
+    if (req.body.order != null) updates.order = Number(req.body.order);
     const course = await Course.findByIdAndUpdate(id, updates, { new: true }).exec();
     if (!course) return res.status(404).json({ error: 'Course not found' });
     res.json(serializeCourse(course));

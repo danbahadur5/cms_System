@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Button } from './ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from './ui/utils';
 import { resolveMediaUrl } from '../utils/api';
 
@@ -26,15 +26,22 @@ export function ImageLightboxDialog({
   title = 'Image preview',
 }: Props) {
   const [index, setIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize index when dialog opens
   useEffect(() => {
-    if (!open || images.length === 0) return;
-    const safe = Math.max(0, Math.min(initialIndex, images.length - 1));
-    setIndex(safe);
+    if (open && images.length > 0) {
+      const safe = Math.max(0, Math.min(initialIndex, images.length - 1));
+      setIndex(safe);
+      setIsLoading(true);
+    }
   }, [open, initialIndex, images.length]);
 
   const go = useCallback(
     (dir: -1 | 1) => {
+      if (images.length <= 1) return;
+      // Don't setIsLoading(true) here because it causes a flickering if the image is already cached
+      // Instead, we let the image transition smoothly when the src changes.
       setIndex((i) => {
         const n = i + dir;
         if (n < 0) return images.length - 1;
@@ -45,6 +52,7 @@ export function ImageLightboxDialog({
     [images.length]
   );
 
+  // Keyboard navigation
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -55,6 +63,21 @@ export function ImageLightboxDialog({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, go]);
 
+  // Preload adjacent images for smoothness
+  useEffect(() => {
+    if (!open || images.length <= 1) return;
+    
+    const nextIdx = (index + 1) % images.length;
+    const prevIdx = (index - 1 + images.length) % images.length;
+    
+    [images[nextIdx], images[prevIdx]].forEach(src => {
+      if (src) {
+        const img = new Image();
+        img.src = resolveMediaUrl(src);
+      }
+    });
+  }, [open, index, images]);
+
   if (!images.length) return null;
   const src = resolveMediaUrl(images[index]);
 
@@ -62,7 +85,7 @@ export function ImageLightboxDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          'max-h-[92vh] max-w-[min(56rem,calc(100%-2rem))] gap-0 overflow-hidden border-0 p-0 sm:max-w-4xl'
+          'max-h-[92vh] max-w-[min(68rem,calc(100%-2rem))] gap-0 overflow-hidden border-0 p-0 sm:max-w-5xl bg-zinc-950 ring-0 focus:outline-none'
         )}
       >
         <DialogHeader className="sr-only">
@@ -70,37 +93,60 @@ export function ImageLightboxDialog({
             {title} — {index + 1} of {images.length}
           </DialogTitle>
         </DialogHeader>
-        <div className="relative bg-zinc-950">
+
+        <div className="relative flex min-h-[300px] items-center justify-center bg-zinc-950">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center text-zinc-500">
+              <Loader2 className="h-8 w-8 animate-spin opacity-50" />
+            </div>
+          )}
+          
           <img
+            key={src}
             src={src}
             alt={`${title}, image ${index + 1} of ${images.length}`}
-            className="max-h-[min(78vh,820px)] w-full object-contain"
+            className={cn(
+              "max-h-[min(84vh,880px)] w-full object-contain transition-all duration-300",
+              isLoading ? "opacity-0 scale-95" : "opacity-100 scale-100"
+            )}
+            onLoad={() => setIsLoading(false)}
           />
+
           {images.length > 1 && (
             <>
-              <Button
+              {/* Left navigation area */}
+              <button
                 type="button"
-                variant="secondary"
-                size="icon"
-                className="absolute left-2 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full border-0 bg-white/95 shadow-md hover:bg-white"
-                onClick={() => go(-1)}
+                className="absolute left-0 top-0 bottom-0 w-20 flex items-center justify-start pl-4 group cursor-pointer z-20 outline-none"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  go(-1);
+                }}
                 aria-label="Previous image"
               >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-              <Button
+                <div className="h-11 w-11 flex items-center justify-center rounded-full bg-black/20 text-white shadow-xl backdrop-blur-sm transition-all group-hover:bg-white/30 group-hover:scale-110 group-active:scale-95">
+                  <ChevronLeft className="h-6 w-6" />
+                </div>
+              </button>
+
+              {/* Right navigation area */}
+              <button
                 type="button"
-                variant="secondary"
-                size="icon"
-                className="absolute right-2 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full border-0 bg-white/95 shadow-md hover:bg-white"
-                onClick={() => go(1)}
+                className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-end pr-4 group cursor-pointer z-20 outline-none"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  go(1);
+                }}
                 aria-label="Next image"
               >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
+                <div className="h-11 w-11 flex items-center justify-center rounded-full bg-black/20 text-white shadow-xl backdrop-blur-sm transition-all group-hover:bg-white/30 group-hover:scale-110 group-active:scale-95">
+                  <ChevronRight className="h-6 w-6" />
+                </div>
+              </button>
             </>
           )}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3 text-center text-sm font-medium text-white">
+
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-md z-30 pointer-events-none">
             {index + 1} / {images.length}
           </div>
         </div>

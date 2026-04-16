@@ -7,6 +7,7 @@ const courseSchema = new mongoose.Schema(
     icon: { type: String, default: 'Briefcase' },
     color: { type: String, default: '#4299E1' },
     image: { type: String, default: '' },
+    order: { type: Number, default: 1 },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false }

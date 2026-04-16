@@ -5,6 +5,7 @@ export interface Course {
   icon: string;
   color: string;
   image?: string;
+  order: number;
   createdAt: string;
 }
 

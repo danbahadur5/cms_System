@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { Image as ImageIcon, Maximize2 } from 'lucide-react';
 import { ImageLightboxDialog } from './ImageLightboxDialog';
 import type { Lesson } from '../types/course';
@@ -10,32 +10,42 @@ type Props = {
   images: string[];
 };
 
-export function LessonVisualModules({ lessonTitle, lessonType, images }: Props) {
+export const LessonVisualModules = memo(function LessonVisualModules({ 
+  lessonTitle, 
+  lessonType, 
+  images 
+}: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [startIndex, setStartIndex] = useState(0);
 
-  if (!images.length) return null;
-
-  const moduleLabel =
+  const moduleLabel = useMemo(() =>
     lessonType === 'practice'
       ? 'Practice module'
       : lessonType === 'project'
         ? 'Project module'
-        : 'Reference';
+        : 'Reference',
+    [lessonType]
+  );
 
-  const shellClass =
+  const shellClass = useMemo(() =>
     lessonType === 'practice'
       ? 'border-amber-200/90 bg-amber-50/50'
       : lessonType === 'project'
         ? 'border-emerald-200/90 bg-emerald-50/50'
-        : 'border-slate-200/90 bg-slate-50/80';
+        : 'border-slate-200/90 bg-slate-50/80',
+    [lessonType]
+  );
 
-  const headingClass =
+  const headingClass = useMemo(() =>
     lessonType === 'practice'
       ? 'text-amber-950'
       : lessonType === 'project'
         ? 'text-emerald-950'
-        : 'text-slate-800';
+        : 'text-slate-800',
+    [lessonType]
+  );
+
+  if (!images.length) return null;
 
   return (
     <>
@@ -54,18 +64,18 @@ export function LessonVisualModules({ lessonTitle, lessonType, images }: Props) 
                   setStartIndex(i);
                   setLightboxOpen(true);
                 }}
-                className="group w-full overflow-hidden rounded-lg border border-gray-200/90 bg-white text-left shadow-sm outline-none ring-offset-2 transition hover:border-blue-400 hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="group w-full overflow-hidden rounded-lg border border-gray-200/90 bg-white text-left shadow-sm outline-none ring-offset-2 transition-all duration-300 hover:border-blue-400 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-blue-500 active:scale-[0.98]"
               >
                 <div className="relative aspect-video w-full overflow-hidden bg-gray-100">
                   <img
                     src={resolveMediaUrl(src)}
                     alt=""
-                    className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                     loading="lazy"
                     decoding="async"
                   />
                   <span
-                    className="absolute right-2 top-2 flex rounded-full bg-black/60 p-1.5 text-white opacity-0 shadow-sm transition group-hover:opacity-100 group-focus-visible:opacity-100"
+                    className="absolute right-2 top-2 flex rounded-full bg-black/60 p-1.5 text-white opacity-0 shadow-sm transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
                     aria-hidden
                   >
                     <Maximize2 className="h-3.5 w-3.5" />
@@ -94,4 +104,4 @@ export function LessonVisualModules({ lessonTitle, lessonType, images }: Props) 
       />
     </>
   );
-}
+});

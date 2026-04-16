@@ -88,6 +88,7 @@ export default function AdminCoursesPage() {
   const [courseColor, setCourseColor] = useState("#4299E1");
   const [courseImage, setCourseImage] = useState("");
   const [courseImageBusy, setCourseImageBusy] = useState(false);
+  const [courseOrder, setCourseOrder] = useState("1");
 
   const [topicName, setTopicName] = useState("");
   const [topicDesc, setTopicDesc] = useState("");
@@ -183,6 +184,7 @@ export default function AdminCoursesPage() {
         setCourseIcon(item.icon);
         setCourseColor(item.color);
         setCourseImage(item.image || "");
+        setCourseOrder(item.order ? item.order.toString() : "1");
       } else if (type === "topic") {
         setTopicName(item.name);
         setTopicDesc(item.description);
@@ -213,6 +215,7 @@ export default function AdminCoursesPage() {
     setCourseColor("#4299E1");
     setCourseImage("");
     setCourseImageBusy(false);
+    setCourseOrder("1");
     setTopicName("");
     setTopicDesc("");
     setTopicIcon("FileText");
@@ -239,6 +242,7 @@ export default function AdminCoursesPage() {
             icon: courseIcon,
             color: courseColor,
             image: courseImage,
+            order: parseInt(courseOrder, 10),
           });
           toast.success("Course updated successfully");
         } else {
@@ -248,6 +252,7 @@ export default function AdminCoursesPage() {
             icon: courseIcon,
             color: courseColor,
             image: courseImage,
+            order: parseInt(courseOrder, 10),
           });
           toast.success("Course added successfully");
         }
@@ -433,7 +438,12 @@ export default function AdminCoursesPage() {
                       {course.name.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate font-semibold">{course.name}</h3>
+                      <h3 className="truncate font-semibold flex items-center gap-2">
+                        <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded tabular-nums">
+                          #{course.order}
+                        </span>
+                        {course.name}
+                      </h3>
                       <p className="truncate text-sm text-gray-600">
                         {course.description}
                       </p>
@@ -744,6 +754,16 @@ export default function AdminCoursesPage() {
                     type="color"
                     value={courseColor}
                     onChange={(e) => setCourseColor(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="courseOrder">Order</Label>
+                  <Input
+                    id="courseOrder"
+                    type="number"
+                    value={courseOrder}
+                    onChange={(e) => setCourseOrder(e.target.value)}
+                    min="1"
                   />
                 </div>
                 <div>
