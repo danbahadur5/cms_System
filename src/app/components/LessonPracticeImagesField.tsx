@@ -298,7 +298,7 @@ export function LessonPracticeImagesField({
           <span className="block">Drop images/files here to upload to the server</span>
           <span className="text-xs text-gray-500">Instant preview will appear below</span>
         </div>
-        <Button type="button" variant="secondary" size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>
+        <Button type="submit"  variant="secondary" size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>
           Choose media
         </Button>
       </div>

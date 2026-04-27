@@ -213,3 +213,33 @@ export async function uploadLessonFile(file: File): Promise<string> {
   }
   return data.url;
 }
+
+// Course-level content management
+export async function addCourseAttachment(courseId: string, attachmentUrl: string): Promise<Course> {
+  return send<Course>(`/api/courses/${encodeURIComponent(courseId)}/attachments`, {
+    method: 'POST',
+    body: JSON.stringify({ url: attachmentUrl }),
+  });
+}
+
+export async function removeCourseAttachment(courseId: string, attachmentUrl: string): Promise<Course> {
+  return send<Course>(`/api/courses/${encodeURIComponent(courseId)}/attachments`, {
+    method: 'DELETE',
+    body: JSON.stringify({ url: attachmentUrl }),
+  });
+}
+
+// Topic-level content management (section/module content)
+export async function addTopicAttachment(topicId: string, attachmentUrl: string): Promise<Topic> {
+  return send<Topic>(`/api/topics/${encodeURIComponent(topicId)}/attachments`, {
+    method: 'POST',
+    body: JSON.stringify({ url: attachmentUrl }),
+  });
+}
+
+export async function removeTopicAttachment(topicId: string, attachmentUrl: string): Promise<Topic> {
+  return send<Topic>(`/api/topics/${encodeURIComponent(topicId)}/attachments`, {
+    method: 'DELETE',
+    body: JSON.stringify({ url: attachmentUrl }),
+  });
+}

@@ -3,8 +3,9 @@ import { useParams, Link, useNavigate } from "react-router";
 import { fetchCourse, fetchTopicsByCourse } from "../utils/courseService";
 import type { Course, Topic } from "../types/course";
 import { FolderCard } from "../components/FolderCard";
-import { ArrowLeft, FolderOpen } from "lucide-react";
+import { ArrowLeft, FolderOpen, Download, Briefcase } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { resolveMediaUrl } from "../utils/api";
 
 export default function CourseDetailsPage() {
   const { courseId } = useParams();
@@ -89,9 +90,49 @@ export default function CourseDetailsPage() {
           </div>
         </div>
 
+        {/* Course Level Attachments */}
+        {(course.attachments || []).length > 0 && (
+          <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-blue-100 rounded-lg shrink-0">
+                <Briefcase className="h-6 w-6 text-blue-700" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  📖 Course Materials & Resources
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Essential documents, syllabus, and resources for the entire course
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(course.attachments || []).map((url, idx) => {
+                    const displayName = url.split('/').filter(Boolean).at(-1) || `Material ${idx + 1}`;
+                    return (
+                      <a
+                        key={`${url}-${idx}`}
+                        href={resolveMediaUrl(url)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 p-3 bg-white rounded-md border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-colors group"
+                      >
+                        <Download className="h-5 w-5 text-blue-600 shrink-0 group-hover:scale-110 transition-transform" />
+                        <span className="text-sm text-blue-700 font-medium truncate flex-1">
+                          {displayName.replace(/^course-|^lesson-/, '').substring(0, 40)}
+                        </span>
+                        <span className="text-xs text-blue-600 shrink-0">↓</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {topics.length > 0 ? (
           <div>
-            <h2 className="mb-6">Topics</h2>
+            <h2 className="mb-4 text-2xl font-bold text-gray-900">Topics & Sections</h2>
+            <p className="mb-6 text-gray-600">Choose a topic to see the day-wise learning plan</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {topics.map((topic) => (
                 <FolderCard

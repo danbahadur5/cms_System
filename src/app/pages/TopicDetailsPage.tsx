@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import { fetchCourse, fetchTopic, fetchLessonsByTopic } from '../utils/courseService';
 import type { Course, Topic, Lesson } from '../types/course';
-import { ArrowLeft, FileText, BookOpen, Lightbulb, Hammer } from 'lucide-react';
+import { ArrowLeft, FileText, BookOpen, Lightbulb, Hammer, Download, Folder } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Card, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { LessonVisualModules } from '../components/LessonVisualModules';
+import { DayWiseLessonCard } from '../components/DayWiseLessonCard';
 import { resolveMediaUrl } from '../utils/api';
 import { Paperclip } from 'lucide-react';
 
@@ -129,97 +130,185 @@ export default function TopicDetailsPage() {
             )}
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold mb-2">{topic.name}</h1>
-              <p className="text-gray-600 text-lg leading-relaxed">{topic.description}</p>
+              <p className="text-gray-600 text-lg leading-relaxed mb-4">{topic.description}</p>
+              {lessons.length > 0 && (
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-gray-900">{lessons.length}</span>
+                    <span>lessons</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-gray-900">{days.length}</span>
+                    <span>days</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
+        {/* Section/Topic Level Attachments */}
+        {(topic.attachments || []).length > 0 && (
+          <div className="mb-8 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-green-100 rounded-lg shrink-0">
+                <Folder className="h-6 w-6 text-green-700" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  📚 Section Materials & Resources
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {(topic.attachments || []).map((url, idx) => {
+                    const displayName = url.split('/').filter(Boolean).at(-1) || `Material ${idx + 1}`;
+                    return (
+                      <a
+                        key={`${url}-${idx}`}
+                        href={resolveMediaUrl(url)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 p-3 bg-white rounded-md border border-green-200 hover:border-green-400 hover:bg-green-50 transition-colors group"
+                      >
+                        <Download className="h-5 w-5 text-green-600 shrink-0 group-hover:scale-110 transition-transform" />
+                        <span className="text-sm text-green-700 font-medium truncate flex-1">
+                          {displayName.replace(/^lesson-|^topic-/, '').substring(0, 40)}
+                        </span>
+                        <span className="text-xs text-green-600 shrink-0">↓</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {days.length > 0 ? (
-          <div className="space-y-8">
-            {days.map((day) => (
-              <div key={day}>
-                <h2 className="mb-4 flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold">
-                    {day}
-                  </span>
-                  Day {day}
-                </h2>
+          <div className="space-y-12">
+            {days.map((day, dayIndex) => (
+              <section key={day} className="scroll-mt-4" id={`day-${day}`}>
+                {/* Day Header */}
+                <div className="mb-6 flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-lg shadow-md">
+                      {day}
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Day {day}</h2>
+                      <p className="text-sm text-gray-500">{lessonsByDay[day].length} lesson{lessonsByDay[day].length !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  {dayIndex < days.length - 1 && (
+                    <div className="flex-1 h-1 bg-gradient-to-r from-blue-200 to-transparent rounded-full"></div>
+                  )}
+                </div>
+
+                {/* Lessons for this day */}
                 <div className="space-y-4">
-                  {lessonsByDay[day].map((lesson) => (
-                    <Card key={lesson.id} className="hover:shadow-md transition-shadow">
+                  {lessonsByDay[day]
+                    .sort((a, b) => a.order - b.order)
+                    .map((lesson, lessonIndex) => (
+                    <Card key={lesson.id} className="hover:shadow-lg transition-all duration-200 overflow-hidden border-l-4" style={{ borderLeftColor: lesson.type === 'teaching' ? '#2563eb' : lesson.type === 'practice' ? '#f59e0b' : '#10b981' }}>
                       <CardHeader>
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3 flex-1">
-                            <div className={`p-2 rounded-lg ${getTypeColor(lesson.type)}`}>
-                              {getTypeIcon(lesson.type)}
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                  <CardTitle className="text-lg">{lesson.title}</CardTitle>
-                                </div>
-                                {lesson.images && lesson.images.length > 0 && (
-                                  <div className="shrink-0">
-                                    <img
-                                      src={resolveMediaUrl(lesson.images[0])}
-                                      alt=""
-                                      className="h-12 w-16 rounded-md border border-gray-200 bg-gray-100 object-cover"
-                                      loading="lazy"
-                                      decoding="async"
-                                    />
-                                  </div>
-                                )}
+                        <div className="space-y-4">
+                          {/* Lesson Header */}
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-4 flex-1">
+                              <div className={`p-3 rounded-lg flex-shrink-0 ${
+                                lesson.type === 'teaching' 
+                                  ? 'bg-blue-100' 
+                                  : lesson.type === 'practice' 
+                                    ? 'bg-amber-100' 
+                                    : 'bg-green-100'
+                              }`}>
+                                {getTypeIcon(lesson.type)}
                               </div>
-                              <CardDescription className="mt-2 text-base text-gray-600">
-                                {lesson.content}
-                              </CardDescription>
-
-                              {lesson.images && lesson.images.length > 0 && (
-                                <LessonVisualModules
-                                  lessonTitle={lesson.title}
-                                  lessonType={lesson.type}
-                                  images={lesson.images}
-                                />
-                              )}
-
-                              {lesson.attachments && lesson.attachments.length > 0 && (
-                                <div className="mt-4 rounded-xl border border-slate-200/80 bg-white/70 p-3">
-                                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                    <Paperclip className="h-4 w-4 opacity-80" aria-hidden />
-                                    <span>Files</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <CardTitle className="text-lg text-gray-900">
+                                      {lessonIndex + 1}. {lesson.title}
+                                    </CardTitle>
+                                    <Badge className={`mt-2 ${getTypeColor(lesson.type)}`}>
+                                      {lesson.type.charAt(0).toUpperCase() + lesson.type.slice(1)}
+                                    </Badge>
                                   </div>
-                                  <ul className="space-y-1.5">
-                                    {lesson.attachments.map((u, idx) => (
-                                      <li key={`${u}-${idx}`} className="text-sm">
-                                        <a
-                                          className="text-blue-700 hover:underline"
-                                          href={resolveMediaUrl(u)}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                        >
-                                          Download file {idx + 1}
-                                        </a>
-                                      </li>
-                                    ))}
-                                  </ul>
+                                  {lesson.images && lesson.images.length > 0 && (
+                                    <div className="shrink-0">
+                                      <img
+                                        src={resolveMediaUrl(lesson.images[0])}
+                                        alt=""
+                                        className="h-16 w-20 rounded-md border border-gray-200 bg-gray-100 object-cover shadow-sm hover:shadow-md transition-shadow"
+                                        loading="lazy"
+                                        decoding="async"
+                                      />
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </div>
                             </div>
                           </div>
-                          <Badge className={getTypeColor(lesson.type)}>
-                            {lesson.type.charAt(0).toUpperCase() + lesson.type.slice(1)}
-                          </Badge>
+
+                          {/* Lesson Content */}
+                          {lesson.content && (
+                            <div className="pl-16 border-t pt-4">
+                              <p className="text-base text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                {lesson.content.substring(0, 300)}
+                                {lesson.content.length > 300 && '...'}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Lesson Images/Visual Modules */}
+                          {lesson.images && lesson.images.length > 0 && (
+                            <div className="pl-16">
+                              <LessonVisualModules
+                                lessonTitle={lesson.title}
+                                lessonType={lesson.type}
+                                images={lesson.images}
+                              />
+                            </div>
+                          )}
+
+                          {/* Lesson Attachments */}
+                          {lesson.attachments && lesson.attachments.length > 0 && (
+                            <div className="pl-16">
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                  <Paperclip className="h-4 w-4" />
+                                  <span>Lesson Resources ({lesson.attachments.length})</span>
+                                </div>
+                                <ul className="space-y-2">
+                                  {lesson.attachments.map((u, idx) => (
+                                    <li key={`${u}-${idx}`} className="text-sm">
+                                      <a
+                                        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors"
+                                        href={resolveMediaUrl(u)}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                        <span>Download {idx + 1}</span>
+                                      </a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </CardHeader>
                     </Card>
                   ))}
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
-            <p className="text-gray-500">No lessons available yet. Visit the admin panel to add lessons to this topic.</p>
+          <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-300">
+            <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 text-lg">No lessons available yet</p>
+            <p className="text-gray-400 text-sm mt-1">Visit the admin panel to add lessons to this topic</p>
           </div>
         )}
 

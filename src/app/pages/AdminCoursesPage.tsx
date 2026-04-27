@@ -11,6 +11,12 @@ import {
   createLesson,
   updateLesson,
   deleteLesson,
+  uploadLessonImage,
+  uploadLessonFile,
+  addCourseAttachment,
+  removeCourseAttachment,
+  addTopicAttachment,
+  removeTopicAttachment,
 } from "../utils/courseService";
 import type { Course, Topic, Lesson } from "../types/course";
 import { resolveMediaUrl } from "../utils/api";
@@ -89,6 +95,8 @@ export default function AdminCoursesPage() {
   const [courseImage, setCourseImage] = useState("");
   const [courseImageBusy, setCourseImageBusy] = useState(false);
   const [courseOrder, setCourseOrder] = useState("1");
+  const [courseAttachments, setCourseAttachments] = useState<string[]>([]);
+  const [courseAttachmentsBusy, setCourseAttachmentsBusy] = useState(false);
 
   const [topicName, setTopicName] = useState("");
   const [topicDesc, setTopicDesc] = useState("");
@@ -97,6 +105,8 @@ export default function AdminCoursesPage() {
   const [topicImage, setTopicImage] = useState("");
   const [topicImageBusy, setTopicImageBusy] = useState(false);
   const [topicOrder, setTopicOrder] = useState("1");
+  const [topicAttachments, setTopicAttachments] = useState<string[]>([]);
+  const [topicAttachmentsBusy, setTopicAttachmentsBusy] = useState(false);
 
   const [lessonTitle, setLessonTitle] = useState("");
   const [lessonContent, setLessonContent] = useState("");
@@ -185,6 +195,7 @@ export default function AdminCoursesPage() {
         setCourseColor(item.color);
         setCourseImage(item.image || "");
         setCourseOrder(item.order ? item.order.toString() : "1");
+        setCourseAttachments(item.attachments || []);
       } else if (type === "topic") {
         setTopicName(item.name);
         setTopicDesc(item.description);
@@ -192,6 +203,7 @@ export default function AdminCoursesPage() {
         setTopicColor(item.color);
         setTopicImage(item.image || "");
         setTopicOrder(item.order.toString());
+        setTopicAttachments(item.attachments || []);
       } else if (type === "lesson") {
         setLessonTitle(item.title);
         setLessonContent(item.content);
@@ -216,6 +228,8 @@ export default function AdminCoursesPage() {
     setCourseImage("");
     setCourseImageBusy(false);
     setCourseOrder("1");
+    setCourseAttachments([]);
+    setCourseAttachmentsBusy(false);
     setTopicName("");
     setTopicDesc("");
     setTopicIcon("FileText");
@@ -223,6 +237,8 @@ export default function AdminCoursesPage() {
     setTopicImage("");
     setTopicImageBusy(false);
     setTopicOrder("1");
+    setTopicAttachments([]);
+    setTopicAttachmentsBusy(false);
     setLessonTitle("");
     setLessonContent("");
     setLessonDay("1");
@@ -235,6 +251,29 @@ export default function AdminCoursesPage() {
   const handleSave = async () => {
     try {
       if (dialogType === "course") {
+        // Validate required fields
+        if (!courseName.trim()) {
+          toast.error("Course name is required.");
+          return;
+        }
+        // Validate icon is from allowed options
+        if (!iconOptions.includes(courseIcon)) {
+          toast.error("Invalid icon selection.");
+          return;
+        }
+        // Validate color format
+        if (!/^#[0-9A-Fa-f]{6}$/.test(courseColor)) {
+          toast.error("Invalid color format.");
+          return;
+        }
+        // Validate order is a positive number
+        const order = parseInt(courseOrder, 10);
+        if (isNaN(order) || order < 1) {
+          toast.error("Order must be a positive number.");
+          return;
+        }
+
+        let courseId: string;
         if (editingItem) {
           await updateCourse(editingItem.id, {
             name: courseName,
@@ -242,21 +281,59 @@ export default function AdminCoursesPage() {
             icon: courseIcon,
             color: courseColor,
             image: courseImage,
-            order: parseInt(courseOrder, 10),
+            order: order,
           });
+          courseId = editingItem.id;
           toast.success("Course updated successfully");
         } else {
-          await createCourse({
+          const newCourse = await createCourse({
             name: courseName,
             description: courseDesc,
             icon: courseIcon,
             color: courseColor,
             image: courseImage,
-            order: parseInt(courseOrder, 10),
+            order: order,
           });
+          courseId = newCourse.id;
           toast.success("Course added successfully");
         }
+        
+        // Sync attachments
+        const oldAttachments = editingItem?.attachments || [];
+        const newAttachments = courseAttachments;
+        const toAdd = newAttachments.filter((a) => !oldAttachments.includes(a));
+        const toRemove = oldAttachments.filter((a) => !newAttachments.includes(a));
+        
+        for (const url of toAdd) {
+          await addCourseAttachment(courseId, url);
+        }
+        for (const url of toRemove) {
+          await removeCourseAttachment(courseId, url);
+        }
       } else if (dialogType === "topic") {
+        // Validate required fields
+        if (!topicName.trim()) {
+          toast.error("Topic name is required.");
+          return;
+        }
+        // Validate icon is from allowed options
+        if (!iconOptions.includes(topicIcon)) {
+          toast.error("Invalid icon selection.");
+          return;
+        }
+        // Validate color format
+        if (!/^#[0-9A-Fa-f]{6}$/.test(topicColor)) {
+          toast.error("Invalid color format.");
+          return;
+        }
+        // Validate order is a positive number
+        const topicOrderNum = parseInt(topicOrder, 10);
+        if (isNaN(topicOrderNum) || topicOrderNum < 1) {
+          toast.error("Order must be a positive number.");
+          return;
+        }
+
+        let topicId: string;
         if (editingItem) {
           await updateTopic(editingItem.id, {
             name: topicName,
@@ -264,33 +341,68 @@ export default function AdminCoursesPage() {
             icon: topicIcon,
             color: topicColor,
             image: topicImage,
-            order: parseInt(topicOrder, 10),
+            order: topicOrderNum,
           });
+          topicId = editingItem.id;
           toast.success("Topic updated successfully");
         } else {
-          await createTopic({
+          const newTopic = await createTopic({
             courseId: parentId,
             name: topicName,
             description: topicDesc,
             icon: topicIcon,
             color: topicColor,
             image: topicImage,
-            order: parseInt(topicOrder, 10),
+            order: topicOrderNum,
           });
+          topicId = newTopic.id;
           toast.success("Topic added successfully");
         }
+        
+        // Sync attachments
+        const oldAttachments = editingItem?.attachments || [];
+        const newAttachments = topicAttachments;
+        const toAdd = newAttachments.filter((a) => !oldAttachments.includes(a));
+        const toRemove = oldAttachments.filter((a) => !newAttachments.includes(a));
+        
+        for (const url of toAdd) {
+          await addTopicAttachment(topicId, url);
+        }
+        for (const url of toRemove) {
+          await removeTopicAttachment(topicId, url);
+        }
       } else if (dialogType === "lesson") {
+        // Validate required fields
         if (!lessonTitle.trim()) {
           toast.error("Lesson title is required.");
           return;
         }
+        // Validate lesson type is from allowed options
+        const allowedTypes = ["teaching", "practice", "project"];
+        if (!allowedTypes.includes(lessonType)) {
+          toast.error("Invalid lesson type.");
+          return;
+        }
+        // Validate day and order are positive numbers
+        const day = parseInt(lessonDay, 10);
+        const order = parseInt(lessonOrder, 10);
+        if (isNaN(day) || day < 1) {
+          toast.error("Day must be a positive number.");
+          return;
+        }
+        if (isNaN(order) || order < 1) {
+          toast.error("Order must be a positive number.");
+          return;
+        }
+
         if (editingItem) {
           await updateLesson(editingItem.id, {
             title: lessonTitle,
             content: lessonContent,
-            day: parseInt(lessonDay, 10),
+            day: day,
             type: lessonType,
-            order: parseInt(lessonOrder, 10),
+            duration: editingItem.duration || 1, // Preserve existing duration
+            order: order,
             images: lessonImages,
             attachments: lessonAttachments,
           });
@@ -300,9 +412,10 @@ export default function AdminCoursesPage() {
             topicId: parentId,
             title: lessonTitle,
             content: lessonContent,
-            day: parseInt(lessonDay, 10),
+            day: day,
             type: lessonType,
-            order: parseInt(lessonOrder, 10),
+            duration: 1, // Default duration
+            order: order,
             images: lessonImages,
             attachments: lessonAttachments,
           });
@@ -443,6 +556,11 @@ export default function AdminCoursesPage() {
                           #{course.order}
                         </span>
                         {course.name}
+                        {(course.attachments?.length ?? 0) > 0 && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                            📎 {course.attachments?.length ?? 0}
+                          </span>
+                        )}
                       </h3>
                       <p className="truncate text-sm text-gray-600">
                         {course.description}
@@ -518,8 +636,13 @@ export default function AdminCoursesPage() {
                                 )}
                               </span>
                               <div className="min-w-0">
-                                <h4 className="truncate font-medium">
+                                <h4 className="truncate font-medium flex items-center gap-2">
                                   {topic.name}
+                                  {(topic.attachments?.length ?? 0) > 0 && (
+                                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                      📎 {topic.attachments?.length ?? 0}
+                                    </span>
+                                  )}
                                 </h4>
                                 <p className="truncate text-sm text-gray-600">
                                   {topic.description}
@@ -831,6 +954,18 @@ export default function AdminCoursesPage() {
                     </div>
                   </div>
                 </div>
+                <div>
+                  <Label>Course Materials & Attachments</Label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Upload PDFs, documents, and other course-level resources
+                  </p>
+                  <LessonAttachmentsField
+                    attachments={courseAttachments}
+                    onAttachmentsChange={setCourseAttachments}
+                    onBusyChange={setCourseAttachmentsBusy}
+                    disabled={courseAttachmentsBusy}
+                  />
+                </div>
               </>
             )}
 
@@ -953,6 +1088,18 @@ export default function AdminCoursesPage() {
                       </Button>
                     </div>
                   </div>
+                </div>
+                <div>
+                  <Label>Section/Topic Materials & Attachments</Label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Upload PDFs, documents, and other resources for this section
+                  </p>
+                  <LessonAttachmentsField
+                    attachments={topicAttachments}
+                    onAttachmentsChange={setTopicAttachments}
+                    onBusyChange={setTopicAttachmentsBusy}
+                    disabled={topicAttachmentsBusy}
+                  />
                 </div>
               </>
             )}
