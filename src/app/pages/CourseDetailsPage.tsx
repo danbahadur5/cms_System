@@ -3,13 +3,16 @@ import { useParams, Link, useNavigate } from "react-router";
 import { fetchCourse, fetchTopicsByCourse } from "../utils/courseService";
 import type { Course, Topic } from "../types/course";
 import { FolderCard } from "../components/FolderCard";
-import { ArrowLeft, FolderOpen, Download, Briefcase } from "lucide-react";
+import { ArrowLeft, FolderOpen, Download, Briefcase, FileText } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { resolveMediaUrl } from "../utils/api";
+import { useAdminAuth } from "../contexts/AdminAuthContext";
 
 export default function CourseDetailsPage() {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { adminEmail } = useAdminAuth();
+  const isAdmin = !!adminEmail;
   const [course, setCourse] = useState<Course | null | undefined>(undefined);
   const [topics, setTopics] = useState<Topic[]>([]);
 
@@ -60,14 +63,14 @@ export default function CourseDetailsPage() {
           Back to All Courses
         </Link>
 
-        <div className="mb-8 bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div className="mb-8 bg-gradient-to-r from-gray-50 to-blue-50 p-6 rounded-lg shadow-sm border-l-4 border-blue-200 overflow-hidden content-protected" onContextMenu={(e) => e.preventDefault()}>
           <div className="flex flex-col md:flex-row gap-6">
             {course.image ? (
               <div className="w-full md:w-48 aspect-video md:aspect-square rounded-lg overflow-hidden border border-gray-100 shadow-sm shrink-0">
                 <img
                   src={resolveMediaUrl(course.image)}
                   alt={course.name}
-                  className="w-full  h-full object-cover"
+                  className="w-full h-full object-cover"
                 />
               </div>
             ) : (
@@ -92,7 +95,7 @@ export default function CourseDetailsPage() {
 
         {/* Course Level Attachments */}
         {(course.attachments || []).length > 0 && (
-          <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg p-6">
+          <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-300 rounded-lg p-6 content-protected" onContextMenu={(e) => e.preventDefault()}>
             <div className="flex items-start gap-4">
               <div className="p-3 bg-blue-100 rounded-lg shrink-0">
                 <Briefcase className="h-6 w-6 text-blue-700" />
@@ -107,7 +110,7 @@ export default function CourseDetailsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {(course.attachments || []).map((url, idx) => {
                     const displayName = url.split('/').filter(Boolean).at(-1) || `Material ${idx + 1}`;
-                    return (
+                    return isAdmin ? (
                       <a
                         key={`${url}-${idx}`}
                         href={resolveMediaUrl(url)}
@@ -121,6 +124,17 @@ export default function CourseDetailsPage() {
                         </span>
                         <span className="text-xs text-blue-600 shrink-0">↓</span>
                       </a>
+                    ) : (
+                      <div
+                        key={`${url}-${idx}`}
+                        className="flex items-center gap-2 p-3 bg-white rounded-md border border-blue-200 opacity-75"
+                      >
+                        <FileText className="h-5 w-5 text-blue-600 shrink-0" />
+                        <span className="text-sm text-blue-700 font-medium truncate flex-1">
+                          {displayName.replace(/^course-|^lesson-/, '').substring(0, 40)}
+                        </span>
+                        <span className="text-xs text-gray-500 shrink-0">View only</span>
+                      </div>
                     );
                   })}
                 </div>

@@ -49,7 +49,7 @@ export const LessonVisualModules = memo(function LessonVisualModules({
 
   return (
     <>
-      <div className={`mt-5 rounded-xl border p-4 ${shellClass}`}>
+      <div className={`mt-5 rounded-xl border p-4 ${shellClass} content-protected`} onContextMenu={(e) => e.preventDefault()}>
         <div className={`mb-3 flex items-center gap-2 text-sm font-semibold ${headingClass}`}>
           <ImageIcon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
           <span>Visual modules</span>
@@ -70,7 +70,7 @@ export const LessonVisualModules = memo(function LessonVisualModules({
                   <img
                     src={resolveMediaUrl(src)}
                     alt=""
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05] protected-allow-view"
                     loading="lazy"
                     decoding="async"
                   />

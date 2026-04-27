@@ -72,13 +72,56 @@ export async function fetchAdminTree(): Promise<AdminTree> {
 export async function createCourse(
   body: Pick<Course, 'name' | 'description' | 'icon' | 'color' | 'order'>
 ): Promise<Course> {
-  return send<Course>('/api/courses', { method: 'POST', body: JSON.stringify(body) });
+  // Validate input before sending
+  if (!body.name?.trim()) {
+    throw new Error('Course name is required');
+  }
+  
+  const allowedIcons = [
+    "Briefcase", "Code", "Palette", "FileText", "Sheet", "Presentation",
+    "Layout", "Braces", "Database", "Globe", "Smartphone", "Camera",
+    "Book", "GraduationCap", "Users", "Zap", "Settings", "Heart",
+    "Star", "Lightbulb", "Puzzle", "Target", "Rocket", "Shield"
+  ];
+  
+  if (body.icon && !allowedIcons.includes(body.icon)) {
+    throw new Error('Invalid icon selection');
+  }
+  
+  if (body.color && !/^#[0-9A-Fa-f]{6}$/.test(body.color)) {
+    throw new Error('Invalid color format');
+  }
+  
+  return send<Course>('/api/courses', { 
+    method: 'POST', 
+    body: JSON.stringify({
+      name: body.name.trim(),
+      description: body.description?.trim() || '',
+      icon: body.icon || 'Briefcase',
+      color: body.color || '#4299E1',
+      order: body.order || 1,
+    }) 
+  });
 }
 
 export async function updateCourse(id: string, updates: Partial<Course>): Promise<Course> {
+  // Sanitize and validate updates
+  const sanitizedUpdates: any = {};
+  if (updates.name != null) {
+    if (typeof updates.name !== 'string' || !updates.name.trim()) {
+      throw new Error('Course name must be a non-empty string');
+    }
+    sanitizedUpdates.name = updates.name.trim();
+  }
+  if (updates.description != null) sanitizedUpdates.description = updates.description;
+  if (updates.icon != null) sanitizedUpdates.icon = updates.icon;
+  if (updates.color != null) sanitizedUpdates.color = updates.color;
+  if (updates.image != null) sanitizedUpdates.image = updates.image;
+  if (updates.order != null) sanitizedUpdates.order = updates.order;
+  
   return send<Course>(`/api/courses/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: JSON.stringify(updates),
+    body: JSON.stringify(sanitizedUpdates),
   });
 }
 
@@ -88,16 +131,39 @@ export async function deleteCourse(id: string): Promise<void> {
 
 export async function createTopic(body: Omit<Topic, 'id'>): Promise<Topic> {
   const { courseId, ...rest } = body;
+  
+  // Validate input
+  if (!rest.name?.trim()) {
+    throw new Error('Topic name is required');
+  }
+  
   return send<Topic>(`/api/courses/${encodeURIComponent(courseId)}/topics`, {
     method: 'POST',
-    body: JSON.stringify(rest),
+    body: JSON.stringify({
+      ...rest,
+      name: rest.name.trim(),
+    }),
   });
 }
 
 export async function updateTopic(id: string, updates: Partial<Topic>): Promise<Topic> {
+  // Sanitize and validate updates
+  const sanitizedUpdates: any = {};
+  if (updates.name != null) {
+    if (typeof updates.name !== 'string' || !updates.name.trim()) {
+      throw new Error('Topic name must be a non-empty string');
+    }
+    sanitizedUpdates.name = updates.name.trim();
+  }
+  if (updates.description != null) sanitizedUpdates.description = updates.description;
+  if (updates.icon != null) sanitizedUpdates.icon = updates.icon;
+  if (updates.color != null) sanitizedUpdates.color = updates.color;
+  if (updates.image != null) sanitizedUpdates.image = updates.image;
+  if (updates.order != null) sanitizedUpdates.order = updates.order;
+  
   return send<Topic>(`/api/topics/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: JSON.stringify(updates),
+    body: JSON.stringify(sanitizedUpdates),
   });
 }
 
@@ -107,16 +173,46 @@ export async function deleteTopic(id: string): Promise<void> {
 
 export async function createLesson(body: Omit<Lesson, 'id'>): Promise<Lesson> {
   const { topicId, ...rest } = body;
+  
+  // Validate input
+  if (!rest.title?.trim()) {
+    throw new Error('Lesson title is required');
+  }
+  
+  const allowedTypes = ['teaching', 'practice', 'project'];
+  if (rest.type && !allowedTypes.includes(rest.type)) {
+    throw new Error('Invalid lesson type');
+  }
+  
   return send<Lesson>(`/api/topics/${encodeURIComponent(topicId)}/lessons`, {
     method: 'POST',
-    body: JSON.stringify(rest),
+    body: JSON.stringify({
+      ...rest,
+      title: rest.title.trim(),
+    }),
   });
 }
 
 export async function updateLesson(id: string, updates: Partial<Lesson>): Promise<Lesson> {
+  // Sanitize and validate updates
+  const sanitizedUpdates: any = {};
+  if (updates.title != null) {
+    if (typeof updates.title !== 'string' || !updates.title.trim()) {
+      throw new Error('Lesson title must be a non-empty string');
+    }
+    sanitizedUpdates.title = updates.title.trim();
+  }
+  if (updates.content != null) sanitizedUpdates.content = updates.content;
+  if (updates.day != null) sanitizedUpdates.day = updates.day;
+  if (updates.type != null) sanitizedUpdates.type = updates.type;
+  if (updates.duration != null) sanitizedUpdates.duration = updates.duration;
+  if (updates.order != null) sanitizedUpdates.order = updates.order;
+  if (updates.images != null) sanitizedUpdates.images = updates.images;
+  if (updates.attachments != null) sanitizedUpdates.attachments = updates.attachments;
+  
   return send<Lesson>(`/api/lessons/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: JSON.stringify(updates),
+    body: JSON.stringify(sanitizedUpdates),
   });
 }
 

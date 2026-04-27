@@ -85,8 +85,9 @@ export function ImageLightboxDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          'max-h-[92vh] max-w-[min(68rem,calc(100%-2rem))] gap-0 overflow-hidden border-0 p-0 sm:max-w-5xl bg-zinc-950 ring-0 focus:outline-none'
+          'max-h-[92vh] max-w-[min(68rem,calc(100%-2rem))] gap-0 overflow-hidden border-0 p-0 sm:max-w-5xl bg-zinc-950 ring-0 focus:outline-none content-protected'
         )}
+        onContextMenu={(e) => e.preventDefault()}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>
@@ -106,7 +107,7 @@ export function ImageLightboxDialog({
             src={src}
             alt={`${title}, image ${index + 1} of ${images.length}`}
             className={cn(
-              "max-h-[min(84vh,880px)] w-full object-contain transition-all duration-300",
+              "max-h-[min(84vh,880px)] w-full object-contain transition-all duration-300 protected-allow-view",
               isLoading ? "opacity-0 scale-95" : "opacity-100 scale-100"
             )}
             onLoad={() => setIsLoading(false)}

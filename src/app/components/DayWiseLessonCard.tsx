@@ -1,9 +1,10 @@
 import React from 'react';
-import { BookOpen, Lightbulb, Hammer, Clock, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, Lightbulb, Hammer, Clock, Download, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import type { Lesson } from '../types/course';
 import { Badge } from './ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { resolveMediaUrl } from '../utils/api';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 interface DayWiseLessonCardProps {
   lesson: Lesson;
@@ -18,6 +19,8 @@ export function DayWiseLessonCard({
   expanded = false,
   onToggle,
 }: DayWiseLessonCardProps) {
+  const { adminEmail } = useAdminAuth();
+  const isAdmin = !!adminEmail;
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'teaching':
@@ -48,7 +51,7 @@ export function DayWiseLessonCard({
   const typeLabel = lesson.type.charAt(0).toUpperCase() + lesson.type.slice(1);
 
   return (
-    <Card className={`${colors.bg} border-2 ${colors.border} hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden`}>
+    <Card className={`${colors.bg} border-2 ${colors.border} hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden content-protected`} onContextMenu={(e) => e.preventDefault()}>
       <CardHeader className="p-4" onClick={onToggle}>
         <div className="flex items-start justify-between gap-4">
           {/* Left: Number and Title */}
@@ -84,7 +87,7 @@ export function DayWiseLessonCard({
               <img
                 src={resolveMediaUrl(lesson.images[0])}
                 alt={lesson.title}
-                className="h-12 w-12 rounded-md object-cover border border-gray-300 shadow-sm"
+                className="h-12 w-12 rounded-md object-cover border border-gray-300 shadow-sm protected-allow-view"
               />
             )}
             {onToggle && (
@@ -118,14 +121,20 @@ export function DayWiseLessonCard({
               <ul className="space-y-1">
                 {lesson.attachments.map((url, idx) => (
                   <li key={`${url}-${idx}`}>
-                    <a
-                      href={resolveMediaUrl(url)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-blue-600 hover:underline"
-                    >
-                      ↓ Download {idx + 1}
-                    </a>
+                    {isAdmin ? (
+                      <a
+                        href={resolveMediaUrl(url)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        ↓ Download {idx + 1}
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-500">
+                        Resource {idx + 1} (View only)
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -138,19 +147,32 @@ export function DayWiseLessonCard({
               <p className="text-xs font-semibold text-gray-700 mb-2">Learning Materials</p>
               <div className="flex gap-2 overflow-x-auto">
                 {lesson.images.map((img, idx) => (
-                  <a
-                    key={`${img}-${idx}`}
-                    href={resolveMediaUrl(img)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-shrink-0"
-                  >
-                    <img
-                      src={resolveMediaUrl(img)}
-                      alt={`${lesson.title} ${idx + 1}`}
-                      className="h-16 w-20 rounded object-cover border border-gray-300 hover:shadow-md transition-shadow"
-                    />
-                  </a>
+                  isAdmin ? (
+                    <a
+                      key={`${img}-${idx}`}
+                      href={resolveMediaUrl(img)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-shrink-0"
+                    >
+                      <img
+                        src={resolveMediaUrl(img)}
+                        alt={`${lesson.title} ${idx + 1}`}
+                        className="h-16 w-20 rounded object-cover border border-gray-300 hover:shadow-md transition-shadow protected-allow-view"
+                      />
+                    </a>
+                  ) : (
+                    <div
+                      key={`${img}-${idx}`}
+                      className="flex-shrink-0"
+                    >
+                      <img
+                        src={resolveMediaUrl(img)}
+                        alt={`${lesson.title} ${idx + 1}`}
+                        className="h-16 w-20 rounded object-cover border border-gray-300 protected-allow-view"
+                      />
+                    </div>
+                  )
                 ))}
               </div>
             </div>

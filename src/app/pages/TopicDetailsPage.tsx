@@ -10,10 +10,13 @@ import { LessonVisualModules } from '../components/LessonVisualModules';
 import { DayWiseLessonCard } from '../components/DayWiseLessonCard';
 import { resolveMediaUrl } from '../utils/api';
 import { Paperclip } from 'lucide-react';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 export default function TopicDetailsPage() {
   const { courseId, topicId } = useParams();
   const navigate = useNavigate();
+  const { adminEmail } = useAdminAuth();
+  const isAdmin = !!adminEmail;
   const [course, setCourse] = useState<Course | null | undefined>(undefined);
   const [topic, setTopic] = useState<Topic | null | undefined>(undefined);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -110,14 +113,14 @@ export default function TopicDetailsPage() {
           <span className="text-gray-900">{topic.name}</span>
         </div>
 
-        <div className="mb-8 bg-white p-6 rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div className="mb-8 bg-white p-6 rounded-lg shadow-sm border border-gray-100 overflow-hidden content-protected" onContextMenu={(e) => e.preventDefault()}>
           <div className="flex flex-col md:flex-row gap-6">
             {topic.image ? (
               <div className="w-full md:w-48 aspect-video md:aspect-square rounded-lg overflow-hidden border border-gray-100 shadow-sm shrink-0">
                 <img
                   src={resolveMediaUrl(topic.image)}
                   alt={topic.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover protected-allow-view"
                 />
               </div>
             ) : (
@@ -149,7 +152,7 @@ export default function TopicDetailsPage() {
 
         {/* Section/Topic Level Attachments */}
         {(topic.attachments || []).length > 0 && (
-          <div className="mb-8 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg p-6">
+          <div className="mb-8 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-300 rounded-lg p-6 content-protected" onContextMenu={(e) => e.preventDefault()}>
             <div className="flex items-start gap-4">
               <div className="p-3 bg-green-100 rounded-lg shrink-0">
                 <Folder className="h-6 w-6 text-green-700" />
@@ -161,7 +164,7 @@ export default function TopicDetailsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {(topic.attachments || []).map((url, idx) => {
                     const displayName = url.split('/').filter(Boolean).at(-1) || `Material ${idx + 1}`;
-                    return (
+                    return isAdmin ? (
                       <a
                         key={`${url}-${idx}`}
                         href={resolveMediaUrl(url)}
@@ -175,6 +178,16 @@ export default function TopicDetailsPage() {
                         </span>
                         <span className="text-xs text-green-600 shrink-0">↓</span>
                       </a>
+                    ) : (
+                      <div
+                        key={`${url}-${idx}`}
+                        className="flex items-center gap-2 p-3 bg-white rounded-md border border-gray-200"
+                      >
+                        <FileText className="h-5 w-5 text-gray-500 shrink-0" />
+                        <span className="text-sm text-gray-600 font-medium truncate flex-1">
+                          Resource {idx + 1}
+                        </span>
+                      </div>
                     );
                   })}
                 </div>
@@ -190,12 +203,12 @@ export default function TopicDetailsPage() {
                 {/* Day Header */}
                 <div className="mb-6 flex items-center gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-lg shadow-md">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-700 font-bold text-lg shadow-sm border-2 border-blue-200">
                       {day}
                     </div>
                     <div>
                       <h2 className="text-xl font-bold text-gray-900">Day {day}</h2>
-                      <p className="text-sm text-gray-500">{lessonsByDay[day].length} lesson{lessonsByDay[day].length !== 1 ? 's' : ''}</p>
+                      <p className="text-sm text-gray-600">{lessonsByDay[day].length} lesson{lessonsByDay[day].length !== 1 ? 's' : ''}</p>
                     </div>
                   </div>
                   {dayIndex < days.length - 1 && (
@@ -208,7 +221,7 @@ export default function TopicDetailsPage() {
                   {lessonsByDay[day]
                     .sort((a, b) => a.order - b.order)
                     .map((lesson, lessonIndex) => (
-                    <Card key={lesson.id} className="hover:shadow-lg transition-all duration-200 overflow-hidden border-l-4" style={{ borderLeftColor: lesson.type === 'teaching' ? '#2563eb' : lesson.type === 'practice' ? '#f59e0b' : '#10b981' }}>
+                    <Card key={lesson.id} className="hover:shadow-lg transition-all duration-200 overflow-hidden border-l-4 content-protected" style={{ borderLeftColor: lesson.type === 'teaching' ? '#93C5FD' : lesson.type === 'practice' ? '#FCD34D' : '#6EE7B7' }} onContextMenu={(e) => e.preventDefault()}>
                       <CardHeader>
                         <div className="space-y-4">
                           {/* Lesson Header */}
@@ -238,7 +251,7 @@ export default function TopicDetailsPage() {
                                       <img
                                         src={resolveMediaUrl(lesson.images[0])}
                                         alt=""
-                                        className="h-16 w-20 rounded-md border border-gray-200 bg-gray-100 object-cover shadow-sm hover:shadow-md transition-shadow"
+                                        className="h-16 w-20 rounded-md border border-gray-200 bg-gray-100 object-cover shadow-sm hover:shadow-md transition-shadow protected-allow-view"
                                         loading="lazy"
                                         decoding="async"
                                       />
@@ -273,25 +286,35 @@ export default function TopicDetailsPage() {
                           {/* Lesson Attachments */}
                           {lesson.attachments && lesson.attachments.length > 0 && (
                             <div className="pl-16">
-                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 content-protected" onContextMenu={(e) => e.preventDefault()}>
                                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
                                   <Paperclip className="h-4 w-4" />
                                   <span>Lesson Resources ({lesson.attachments.length})</span>
                                 </div>
                                 <ul className="space-y-2">
-                                  {lesson.attachments.map((u, idx) => (
-                                    <li key={`${u}-${idx}`} className="text-sm">
-                                      <a
-                                        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors"
-                                        href={resolveMediaUrl(u)}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                        <span>Download {idx + 1}</span>
-                                      </a>
-                                    </li>
-                                  ))}
+                                  {lesson.attachments.map((u, idx) => {
+                                    const displayName = u.split('/').filter(Boolean).at(-1) || `Resource ${idx + 1}`;
+                                    return isAdmin ? (
+                                      <li key={`${u}-${idx}`} className="text-sm">
+                                        <a
+                                          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors"
+                                          href={resolveMediaUrl(u)}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                        >
+                                          <Download className="h-4 w-4" />
+                                          <span>{displayName.replace(/^lesson-|^topic-/, '').substring(0, 40)}</span>
+                                        </a>
+                                      </li>
+                                    ) : (
+                                      <li key={`${u}-${idx}`} className="text-sm">
+                                        <div className="inline-flex items-center gap-2 text-gray-500 font-medium">
+                                          <FileText className="h-4 w-4" />
+                                          <span>{displayName.replace(/^lesson-|^topic-/, '').substring(0, 40)} (View only)</span>
+                                        </div>
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               </div>
                             </div>

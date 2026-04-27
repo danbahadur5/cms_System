@@ -194,13 +194,48 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: '2mb' }));
-app.use(
-  '/uploads',
-  express.static(UPLOADS_DIR, {
-    maxAge: '7d',
-    immutable: false,
-  })
-);
+// Secure file serving with access control
+app.use('/uploads', (req, res, next) => {
+  // Allow admin users full access
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  
+  if (token) {
+    try {
+      const payload = jwt.verify(token, JWT_SECRET);
+      if (payload.sub === 'admin') {
+        // Admin has full access - serve files normally
+        return express.static(UPLOADS_DIR, {
+          maxAge: '7d',
+          immutable: false,
+        })(req, res, next);
+      }
+    } catch (e) {
+      // Invalid token, continue to restricted access
+    }
+  }
+  
+  // For non-admin or unauthenticated users:
+  // Only allow image viewing, block downloads of other file types
+  const ext = path.extname(req.path).toLowerCase();
+  const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.heic', '.heif'];
+  
+  if (imageExts.includes(ext)) {
+    // Serve images with restrictive headers to prevent downloading
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return express.static(UPLOADS_DIR, {
+      maxAge: '1h',
+      immutable: false,
+    })(req, res, next);
+  }
+  
+  // Block all other file types (PDFs, documents, etc.) for non-admin users
+  res.status(403).json({ 
+    error: 'Access denied. Authentication required to download course materials.' 
+  });
+});
 
 let dbConnectPromise = null;
 async function ensureDbConnected() {
@@ -237,6 +272,33 @@ function createRateLimiter({ windowMs, max, keyPrefix }) {
 
 const authLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 50, keyPrefix: 'auth' });
 const uploadLimiter = createRateLimiter({ windowMs: 5 * 60 * 1000, max: 200, keyPrefix: 'upload' });
+const mutationLimiter = createRateLimiter({ windowMs: 1 * 60 * 1000, max: 30, keyPrefix: 'mutations' });
+
+function sanitizeInputs(req, res, next) {
+  if (req.body && typeof req.body === 'object') {
+    const sanitized = {};
+    for (const [key, value] of Object.entries(req.body)) {
+      if (typeof value === 'string') {
+        // Remove potentially harmful HTML/JS characters but keep essential text
+        sanitized[key] = value.replace(/[<>]/g, '').trim();
+      } else if (Array.isArray(value)) {
+        // Sanitize array items if they're strings
+        sanitized[key] = value.map(item => 
+          typeof item === 'string' ? item.replace(/[<>]/g, '').trim() : item
+        );
+      } else {
+        sanitized[key] = value;
+      }
+    }
+    req.body = sanitized;
+  }
+  next();
+}
+
+// Apply sanitization to mutation endpoints
+app.use('/api/courses', sanitizeInputs);
+app.use('/api/topics', sanitizeInputs);
+app.use('/api/lessons', sanitizeInputs);
 
 /** Ensure DB is ready for each request in serverless mode. */
 app.use(async (_req, res, next) => {
@@ -487,12 +549,33 @@ app.get('/api/admin/tree', requireAdmin, async (_req, res) => {
   }
 });
 
-app.post('/api/courses', requireAdmin, async (req, res) => {
+const allowedIcons = [
+  "Briefcase", "Code", "Palette", "FileText", "Sheet", "Presentation",
+  "Layout", "Braces", "Database", "Globe", "Smartphone", "Camera",
+  "Book", "GraduationCap", "Users", "Zap", "Settings", "Heart",
+  "Star", "Lightbulb", "Puzzle", "Target", "Rocket", "Shield"
+];
+const allowedLessonTypes = ['teaching', 'practice', 'project'];
+
+app.post('/api/courses', requireAdmin, mutationLimiter, async (req, res) => {
   try {
     const { name, description, icon, color, order, image } = req.body || {};
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'name is required' });
     }
+    // Validate icon
+    if (icon && !allowedIcons.includes(icon)) {
+      return res.status(400).json({ error: 'Invalid icon selection' });
+    }
+    // Validate color format
+    if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      return res.status(400).json({ error: 'Invalid color format' });
+    }
+    // Validate order is a positive number
+    if (order !== undefined && (isNaN(Number(order)) || Number(order) < 1)) {
+      return res.status(400).json({ error: 'Order must be a positive number' });
+    }
+    
     const course = await Course.create({
       name: name.trim(),
       description: String(description || ''),
@@ -507,19 +590,39 @@ app.post('/api/courses', requireAdmin, async (req, res) => {
   }
 });
 
-app.patch('/api/courses/:id', requireAdmin, async (req, res) => {
+app.patch('/api/courses/:id', requireAdmin, mutationLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
       return res.status(404).json({ error: 'Course not found' });
     }
     const updates = {};
-    if (req.body.name != null) updates.name = String(req.body.name).trim();
+    if (req.body.name != null) {
+      if (typeof req.body.name !== 'string' || !req.body.name.trim()) {
+        return res.status(400).json({ error: 'name must be a non-empty string' });
+      }
+      updates.name = String(req.body.name).trim();
+    }
     if (req.body.description != null) updates.description = String(req.body.description);
-    if (req.body.icon != null) updates.icon = String(req.body.icon);
-    if (req.body.color != null) updates.color = String(req.body.color);
+    if (req.body.icon != null) {
+      if (!allowedIcons.includes(req.body.icon)) {
+        return res.status(400).json({ error: 'Invalid icon selection' });
+      }
+      updates.icon = String(req.body.icon);
+    }
+    if (req.body.color != null) {
+      if (!/^#[0-9A-Fa-f]{6}$/.test(req.body.color)) {
+        return res.status(400).json({ error: 'Invalid color format' });
+      }
+      updates.color = String(req.body.color);
+    }
     if (req.body.image != null) updates.image = String(req.body.image);
-    if (req.body.order != null) updates.order = Number(req.body.order);
+    if (req.body.order != null) {
+      if (isNaN(Number(req.body.order)) || Number(req.body.order) < 1) {
+        return res.status(400).json({ error: 'Order must be a positive number' });
+      }
+      updates.order = Number(req.body.order);
+    }
     const course = await Course.findByIdAndUpdate(id, updates, { new: true }).exec();
     if (!course) return res.status(404).json({ error: 'Course not found' });
     res.json(serializeCourse(course));
@@ -528,7 +631,7 @@ app.patch('/api/courses/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/courses/:id', requireAdmin, async (req, res) => {
+app.delete('/api/courses/:id', requireAdmin, mutationLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
@@ -546,7 +649,7 @@ app.delete('/api/courses/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/courses/:courseId/topics', requireAdmin, async (req, res) => {
+app.post('/api/courses/:courseId/topics', requireAdmin, mutationLimiter, async (req, res) => {
   try {
     const { courseId } = req.params;
     if (!mongoose.isValidObjectId(courseId)) {
@@ -558,6 +661,19 @@ app.post('/api/courses/:courseId/topics', requireAdmin, async (req, res) => {
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'name is required' });
     }
+    // Validate icon
+    if (icon && !allowedIcons.includes(icon)) {
+      return res.status(400).json({ error: 'Invalid icon selection' });
+    }
+    // Validate color format
+    if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      return res.status(400).json({ error: 'Invalid color format' });
+    }
+    // Validate order
+    if (order !== undefined && (isNaN(Number(order)) || Number(order) < 1)) {
+      return res.status(400).json({ error: 'Order must be a positive number' });
+    }
+    
     const topic = await Topic.create({
       courseId,
       name: name.trim(),
@@ -573,19 +689,39 @@ app.post('/api/courses/:courseId/topics', requireAdmin, async (req, res) => {
   }
 });
 
-app.patch('/api/topics/:id', requireAdmin, async (req, res) => {
+app.patch('/api/topics/:id', requireAdmin, mutationLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
       return res.status(404).json({ error: 'Topic not found' });
     }
     const updates = {};
-    if (req.body.name != null) updates.name = String(req.body.name).trim();
+    if (req.body.name != null) {
+      if (typeof req.body.name !== 'string' || !req.body.name.trim()) {
+        return res.status(400).json({ error: 'name must be a non-empty string' });
+      }
+      updates.name = String(req.body.name).trim();
+    }
     if (req.body.description != null) updates.description = String(req.body.description);
-    if (req.body.icon != null) updates.icon = String(req.body.icon);
-    if (req.body.color != null) updates.color = String(req.body.color);
+    if (req.body.icon != null) {
+      if (!allowedIcons.includes(req.body.icon)) {
+        return res.status(400).json({ error: 'Invalid icon selection' });
+      }
+      updates.icon = String(req.body.icon);
+    }
+    if (req.body.color != null) {
+      if (!/^#[0-9A-Fa-f]{6}$/.test(req.body.color)) {
+        return res.status(400).json({ error: 'Invalid color format' });
+      }
+      updates.color = String(req.body.color);
+    }
     if (req.body.image != null) updates.image = String(req.body.image);
-    if (req.body.order != null) updates.order = Number(req.body.order);
+    if (req.body.order != null) {
+      if (isNaN(Number(req.body.order)) || Number(req.body.order) < 1) {
+        return res.status(400).json({ error: 'Order must be a positive number' });
+      }
+      updates.order = Number(req.body.order);
+    }
     const topic = await Topic.findByIdAndUpdate(id, updates, { new: true }).exec();
     if (!topic) return res.status(404).json({ error: 'Topic not found' });
     res.json(serializeTopic(topic));
@@ -594,7 +730,7 @@ app.patch('/api/topics/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/topics/:id', requireAdmin, async (req, res) => {
+app.delete('/api/topics/:id', requireAdmin, mutationLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
@@ -609,7 +745,7 @@ app.delete('/api/topics/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/topics/:topicId/lessons', requireAdmin, async (req, res) => {
+app.post('/api/topics/:topicId/lessons', requireAdmin, mutationLimiter, async (req, res) => {
   try {
     const { topicId } = req.params;
     if (!mongoose.isValidObjectId(topicId)) {
@@ -617,16 +753,33 @@ app.post('/api/topics/:topicId/lessons', requireAdmin, async (req, res) => {
     }
     const parent = await Topic.findById(topicId).exec();
     if (!parent) return res.status(404).json({ error: 'Topic not found' });
-    const { title, content, day, type, order, images, attachments } = req.body || {};
+    const { title, content, day, type, order, images, attachments, duration } = req.body || {};
     if (!title || typeof title !== 'string') {
       return res.status(400).json({ error: 'title is required' });
     }
+    // Validate lesson type
+    if (type && !allowedLessonTypes.includes(type)) {
+      return res.status(400).json({ error: 'Invalid lesson type' });
+    }
+    // Validate day and order
+    if (day !== undefined && (isNaN(Number(day)) || Number(day) < 1)) {
+      return res.status(400).json({ error: 'Day must be a positive number' });
+    }
+    if (order !== undefined && (isNaN(Number(order)) || Number(order) < 1)) {
+      return res.status(400).json({ error: 'Order must be a positive number' });
+    }
+    // Validate duration if provided
+    if (duration !== undefined && (isNaN(Number(duration)) || Number(duration) < 0)) {
+      return res.status(400).json({ error: 'Duration must be a non-negative number' });
+    }
+    
     const lesson = await Lesson.create({
       topicId,
       title: title.trim(),
       content: String(content || ''),
       day: Math.max(1, Number(day) || 1),
       type: ['teaching', 'practice', 'project'].includes(type) ? type : 'teaching',
+      duration: Number(duration) || 1,
       order: Number(order) || 1,
       images: Array.isArray(images) ? images.filter((u) => typeof u === 'string') : [],
       attachments: Array.isArray(attachments) ? attachments.filter((u) => typeof u === 'string') : [],
@@ -637,20 +790,44 @@ app.post('/api/topics/:topicId/lessons', requireAdmin, async (req, res) => {
   }
 });
 
-app.patch('/api/lessons/:id', requireAdmin, async (req, res) => {
+app.patch('/api/lessons/:id', requireAdmin, mutationLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
       return res.status(404).json({ error: 'Lesson not found' });
     }
     const updates = {};
-    if (req.body.title != null) updates.title = String(req.body.title).trim();
+    if (req.body.title != null) {
+      if (typeof req.body.title !== 'string' || !req.body.title.trim()) {
+        return res.status(400).json({ error: 'title must be a non-empty string' });
+      }
+      updates.title = String(req.body.title).trim();
+    }
     if (req.body.content != null) updates.content = String(req.body.content);
-    if (req.body.day != null) updates.day = Math.max(1, Number(req.body.day));
-    if (req.body.type != null && ['teaching', 'practice', 'project'].includes(req.body.type)) {
+    if (req.body.day != null) {
+      if (isNaN(Number(req.body.day)) || Number(req.body.day) < 1) {
+        return res.status(400).json({ error: 'Day must be a positive number' });
+      }
+      updates.day = Math.max(1, Number(req.body.day));
+    }
+    if (req.body.type != null) {
+      if (!allowedLessonTypes.includes(req.body.type)) {
+        return res.status(400).json({ error: 'Invalid lesson type' });
+      }
       updates.type = req.body.type;
     }
-    if (req.body.order != null) updates.order = Number(req.body.order);
+    if (req.body.duration != null) {
+      if (isNaN(Number(req.body.duration)) || Number(req.body.duration) < 0) {
+        return res.status(400).json({ error: 'Duration must be a non-negative number' });
+      }
+      updates.duration = Number(req.body.duration);
+    }
+    if (req.body.order != null) {
+      if (isNaN(Number(req.body.order)) || Number(req.body.order) < 1) {
+        return res.status(400).json({ error: 'Order must be a positive number' });
+      }
+      updates.order = Number(req.body.order);
+    }
     if (req.body.images != null) {
       updates.images = Array.isArray(req.body.images) ? req.body.images.filter((u) => typeof u === 'string') : [];
     }
@@ -667,7 +844,7 @@ app.patch('/api/lessons/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/lessons/:id', requireAdmin, async (req, res) => {
+app.delete('/api/lessons/:id', requireAdmin, mutationLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
