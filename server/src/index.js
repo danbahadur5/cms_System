@@ -56,6 +56,7 @@ const ADMIN_EMAIL = trimEnvQuotes(process.env.ADMIN_EMAIL || '')
   .trim()
   .toLowerCase();
 const ADMIN_PASSWORD = trimEnvQuotes(process.env.ADMIN_PASSWORD || '');
+const SITE_PASSWORD = trimEnvQuotes(process.env.SITE_PASSWORD || '');
 const JWT_SECRET = trimEnvQuotes(process.env.JWT_SECRET || '');
 const JWT_EXPIRES = '8h';
 /** Optional, e.g. https://api.yoursite.com — prefix for local /uploads URLs when the SPA is on another host */
@@ -153,6 +154,25 @@ function requireAdmin(req, res, next) {
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
+function requireSiteAccess(req, res, next) {
+  if (!SITE_PASSWORD) return next();
+  
+  const header = req.headers['x-site-access'];
+  if (!header) {
+    return res.status(403).json({ error: 'Site access required' });
+  }
+  
+  try {
+    const payload = jwt.verify(header, JWT_SECRET);
+    if (payload.sub !== 'site-access') {
+      return res.status(403).json({ error: 'Invalid site access token' });
+    }
+    next();
+  } catch {
+    return res.status(403).json({ error: 'Site access session expired' });
   }
 }
 
@@ -436,7 +456,7 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.get('/api/stats', async (_req, res) => {
+app.get('/api/stats', requireSiteAccess, async (_req, res) => {
   try {
     const [courseCount, lessonCount] = await Promise.all([
       Course.countDocuments().exec(),
@@ -446,6 +466,21 @@ app.get('/api/stats', async (_req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message || 'Failed to load stats' });
   }
+});
+
+app.post('/api/auth/verify-site', authLimiter, (req, res) => {
+  const password = String(req.body?.password || '');
+  if (!SITE_PASSWORD) {
+    // If no site password is set, allow access
+    return res.json({ success: true, message: 'No password protection configured' });
+  }
+  if (timingSafeEqualString(password, SITE_PASSWORD)) {
+    // Return a simple token or just success. For better security, we could return a signed JWT.
+    // Let's return a simple JWT that marks site-access.
+    const token = jwt.sign({ sub: 'site-access' }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ success: true, token });
+  }
+  return res.status(401).json({ error: 'Incorrect password' });
 });
 
 app.post('/api/auth/login', authLimiter, (req, res) => {
@@ -470,7 +505,7 @@ app.get('/api/auth/me', requireAdmin, (req, res) => {
 });
 
 /** Public: all courses */
-app.get('/api/courses', async (_req, res) => {
+app.get('/api/courses', requireSiteAccess, async (_req, res) => {
   try {
     const list = await Course.find().sort({ order: 1, createdAt: -1 }).exec();
     res.json(list.map(serializeCourse));
@@ -479,7 +514,7 @@ app.get('/api/courses', async (_req, res) => {
   }
 });
 
-app.get('/api/courses/:id', async (req, res) => {
+app.get('/api/courses/:id', requireSiteAccess, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(404).json({ error: 'Course not found' });
@@ -492,7 +527,7 @@ app.get('/api/courses/:id', async (req, res) => {
   }
 });
 
-app.get('/api/courses/:courseId/topics', async (req, res) => {
+app.get('/api/courses/:courseId/topics', requireSiteAccess, async (req, res) => {
   try {
     const { courseId } = req.params;
     if (!mongoose.isValidObjectId(courseId)) {
@@ -505,7 +540,7 @@ app.get('/api/courses/:courseId/topics', async (req, res) => {
   }
 });
 
-app.get('/api/topics/:topicId', async (req, res) => {
+app.get('/api/topics/:topicId', requireSiteAccess, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.topicId)) {
       return res.status(404).json({ error: 'Topic not found' });
@@ -518,7 +553,7 @@ app.get('/api/topics/:topicId', async (req, res) => {
   }
 });
 
-app.get('/api/topics/:topicId/lessons', async (req, res) => {
+app.get('/api/topics/:topicId/lessons', requireSiteAccess, async (req, res) => {
   try {
     const { topicId } = req.params;
     if (!mongoose.isValidObjectId(topicId)) {

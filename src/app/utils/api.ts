@@ -49,14 +49,34 @@ export function getAuthToken(): string | null {
   return sessionStorage.getItem('cms_jwt');
 }
 
+export function getSiteAccessToken(): string | null {
+  return sessionStorage.getItem('site-access-token');
+}
+
 export function authHeaders(): HeadersInit {
+  const headers: Record<string, string> = {};
+  
   const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  
+  const siteToken = getSiteAccessToken();
+  if (siteToken) {
+    headers['x-site-access'] = siteToken;
+  }
+  
+  return headers;
 }
 
 export async function parseJsonResponse<T>(res: Response): Promise<T> {
   const data = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) {
+    if (res.status === 403 && data.error?.includes('Site access')) {
+      // Clear site access token if server rejects it
+      sessionStorage.removeItem('site-access-token');
+      window.location.reload(); // Force reload to show PasswordGate
+    }
     throw new Error(data.error || res.statusText || 'Request failed');
   }
   return data as T;

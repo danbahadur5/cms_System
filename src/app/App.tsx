@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { RouterProvider } from 'react-router';
 import { AdminAuthProvider } from './contexts/AdminAuthContext';
 import { router } from './routes';
+import PasswordGate from './components/PasswordGate';
 
 export default function App() {
   // Keyboard shortcut prevention for content protection
@@ -31,7 +32,9 @@ export default function App() {
 
   return (
     <AdminAuthProvider>
-      <RouterProvider router={router} />
+      <PasswordGate>
+        <RouterProvider router={router} />
+      </PasswordGate>
     </AdminAuthProvider>
   );
 }

@@ -2,16 +2,17 @@ import type { Course, Topic, Lesson } from '../types/course';
 import { authHeaders, getApiBase, getAuthToken, getUploadApiBase, parseJsonResponse } from './api';
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${getApiBase()}${path}`);
+  const headers = authHeaders();
+  const res = await fetch(`${getApiBase()}${path}`, { headers });
   return parseJsonResponse<T>(res);
 }
 
 async function send<T>(path: string, init: RequestInit): Promise<T> {
+  const auth = authHeaders() as Record<string, string>;
   const headers: Record<string, string> = {
+    ...auth,
     ...(init.headers as Record<string, string> | undefined),
   };
-  const auth = authHeaders() as Record<string, string>;
-  if (auth.Authorization) headers.Authorization = auth.Authorization;
   if (init.body && !(init.body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
