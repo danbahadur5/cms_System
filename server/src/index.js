@@ -158,7 +158,10 @@ function requireAdmin(req, res, next) {
 }
 
 function requireSiteAccess(req, res, next) {
-  if (!SITE_PASSWORD) return next();
+  // SECURITY: If SITE_PASSWORD is not set or too weak, block data access entirely.
+  if (!SITE_PASSWORD || SITE_PASSWORD.length < 4) {
+    return res.status(503).json({ error: 'System is locked due to missing security configuration.' });
+  }
   
   const header = req.headers['x-site-access'];
   if (!header) {
@@ -470,10 +473,15 @@ app.get('/api/stats', requireSiteAccess, async (_req, res) => {
 
 app.post('/api/auth/verify-site', authLimiter, (req, res) => {
   const password = String(req.body?.password || '');
-  if (!SITE_PASSWORD) {
-    // If no site password is set, allow access
-    return res.json({ success: true, message: 'No password protection configured' });
+  
+  if (!SITE_PASSWORD || SITE_PASSWORD.length < 4) {
+    // SECURITY: If SITE_PASSWORD is missing or too short, block access for safety.
+    console.error('[auth] SITE_PASSWORD is not configured or too short on the server.');
+    return res.status(503).json({ 
+      error: 'Security configuration missing. Access is restricted.' 
+    });
   }
+
   if (timingSafeEqualString(password, SITE_PASSWORD)) {
     // Return a simple token or just success. For better security, we could return a signed JWT.
     // Let's return a simple JWT that marks site-access.
