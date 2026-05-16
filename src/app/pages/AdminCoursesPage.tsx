@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
 import {
   fetchAdminTree,
@@ -33,6 +33,13 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetClose,
+} from "../components/ui/sheet";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -58,13 +65,29 @@ import {
   ChevronRight,
   ImageIcon,
   Loader2,
+  BookOpen,
+  Lightbulb,
+  Hammer,
+  FileText,
+  Layers,
+  Upload,
+  GripVertical,
+  X,
 } from "lucide-react";
 import { ImageLightboxDialog } from "../components/ImageLightboxDialog";
 import { LessonPracticeImagesField } from "../components/LessonPracticeImagesField";
 import { LessonAttachmentsField } from "../components/LessonAttachmentsField";
+import { defaultLessonContent, lessonTemplate } from "../utils/editorUtils";
 import { toast } from "sonner";
 
 type DialogType = "course" | "topic" | "lesson" | null;
+
+interface LessonPointData {
+  heading: string;
+  content: string;
+  images: string[];
+  attachments: string[];
+}
 
 export default function AdminCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -86,6 +109,11 @@ export default function AdminCoursesPage() {
     type: DialogType;
     id: string;
   } | null>(null);
+
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [parsedSections, setParsedSections] = useState<
+    Array<{ day: number; title: string; html: string }>
+  >([]);
 
   // Form states
   const [courseName, setCourseName] = useState("");
@@ -120,6 +148,9 @@ export default function AdminCoursesPage() {
   const [practiceImagesBusy, setPracticeImagesBusy] = useState(false);
   const [lessonAttachments, setLessonAttachments] = useState<string[]>([]);
   const [attachmentsBusy, setAttachmentsBusy] = useState(false);
+  const [lessonPoints, setLessonPoints] = useState<LessonPointData[]>([
+    { heading: "", content: "", images: [], attachments: [] },
+  ]);
   const [imageLightbox, setImageLightbox] = useState<{
     urls: string[];
     index: number;
@@ -161,6 +192,22 @@ export default function AdminCoursesPage() {
   useEffect(() => {
     void refreshData();
   }, [refreshData]);
+
+  // For new lessons, auto-insert a Day heading and type line when title/day/type change
+  useEffect(() => {
+    if (editingItem) return; // don't overwrite existing lesson content
+    const next = defaultLessonContent(
+      lessonDay,
+      lessonTitle || "New Lesson",
+      lessonType,
+    );
+    if (
+      !lessonContent ||
+      /^\s*<h1[\s\S]*?>[\s\S]*?<\/h1>/i.test(lessonContent)
+    ) {
+      setLessonContent(next);
+    }
+  }, [lessonDay, lessonTitle, lessonType, editingItem]);
 
   const toggleCourse = (courseId: string) => {
     const newExpanded = new Set(expandedCourses);
@@ -212,9 +259,37 @@ export default function AdminCoursesPage() {
         setLessonOrder(item.order.toString());
         setLessonImages(item.images || []);
         setLessonAttachments(item.attachments || []);
+        // Show the FULL content as-is in the editor; heading is just the title
+        setLessonPoints([
+          {
+            heading: item.title || "",
+            content: item.content,
+            images: item.images || [],
+            attachments: item.attachments || [],
+          },
+        ]);
       }
     } else {
       resetForm();
+      // If opening a new Lesson dialog, default the Day to the next available day
+      if (type === "lesson" && parent) {
+        const topicLessons = allLessons.filter((l) => l.topicId === parent);
+        const maxDay = topicLessons.reduce(
+          (m, l) => Math.max(m, l.day || 0),
+          0,
+        );
+        setLessonDay((maxDay + 1).toString());
+        // Prepare first point with default content
+        const idx = maxDay + 1;
+        setLessonPoints([
+          {
+            heading: "",
+            content: "",
+            images: [],
+            attachments: [],
+          },
+        ]);
+      }
     }
 
     setDialogOpen(true);
@@ -240,12 +315,13 @@ export default function AdminCoursesPage() {
     setTopicAttachments([]);
     setTopicAttachmentsBusy(false);
     setLessonTitle("");
-    setLessonContent("");
+    setLessonContent(defaultLessonContent(1, ""));
     setLessonDay("1");
     setLessonType("teaching");
     setLessonOrder("1");
     setLessonImages([]);
     setLessonAttachments([]);
+    setLessonPoints([{ heading: "", content: "", images: [], attachments: [] }]);
   };
 
   const handleSave = async () => {
@@ -297,13 +373,15 @@ export default function AdminCoursesPage() {
           courseId = newCourse.id;
           toast.success("Course added successfully");
         }
-        
+
         // Sync attachments
         const oldAttachments = editingItem?.attachments || [];
         const newAttachments = courseAttachments;
         const toAdd = newAttachments.filter((a) => !oldAttachments.includes(a));
-        const toRemove = oldAttachments.filter((a) => !newAttachments.includes(a));
-        
+        const toRemove = oldAttachments.filter(
+          (a) => !newAttachments.includes(a),
+        );
+
         for (const url of toAdd) {
           await addCourseAttachment(courseId, url);
         }
@@ -358,13 +436,15 @@ export default function AdminCoursesPage() {
           topicId = newTopic.id;
           toast.success("Topic added successfully");
         }
-        
+
         // Sync attachments
         const oldAttachments = editingItem?.attachments || [];
         const newAttachments = topicAttachments;
         const toAdd = newAttachments.filter((a) => !oldAttachments.includes(a));
-        const toRemove = oldAttachments.filter((a) => !newAttachments.includes(a));
-        
+        const toRemove = oldAttachments.filter(
+          (a) => !newAttachments.includes(a),
+        );
+
         for (const url of toAdd) {
           await addTopicAttachment(topicId, url);
         }
@@ -372,11 +452,6 @@ export default function AdminCoursesPage() {
           await removeTopicAttachment(topicId, url);
         }
       } else if (dialogType === "lesson") {
-        // Validate required fields
-        if (!lessonTitle.trim()) {
-          toast.error("Lesson title is required.");
-          return;
-        }
         // Validate lesson type is from allowed options
         const allowedTypes = ["teaching", "practice", "project"];
         if (!allowedTypes.includes(lessonType)) {
@@ -396,30 +471,54 @@ export default function AdminCoursesPage() {
         }
 
         if (editingItem) {
+          const pt = lessonPoints[0];
+          // Preserve content but strip h1/div to keep stored HTML clean
+          const finalTitle = pt?.heading?.trim() || lessonTitle;
+          const contentToSave = buildLessonHtml(finalTitle, pt?.content || "");
           await updateLesson(editingItem.id, {
-            title: lessonTitle,
-            content: lessonContent,
+            title: finalTitle,
+            content: contentToSave,
             day: day,
             type: lessonType,
-            duration: editingItem.duration || 1, // Preserve existing duration
+            duration: editingItem.duration || 1,
             order: order,
-            images: lessonImages,
-            attachments: lessonAttachments,
+            images: pt?.images || lessonImages,
+            attachments: pt?.attachments || lessonAttachments,
           });
           toast.success("Lesson updated successfully");
         } else {
-          await createLesson({
-            topicId: parentId,
-            title: lessonTitle,
-            content: lessonContent,
-            day: day,
-            type: lessonType,
-            duration: 1, // Default duration
-            order: order,
-            images: lessonImages,
-            attachments: lessonAttachments,
-          });
-          toast.success("Lesson added successfully");
+          const validPoints = lessonPoints.filter((p) => p.heading.trim() || p.content.trim());
+          if (validPoints.length === 0) {
+            toast.error("At least one section with content is required.");
+            return;
+          }
+          for (let i = 0; i < validPoints.length; i++) {
+            const pt = validPoints[i];
+            const hText = pt.heading?.trim() || "";
+            const heading = hText || `Day ${day + i} — Lesson`;
+            const contentToSave = buildLessonHtml(heading, pt.content || "");
+
+            const dayMatch = heading.match(/Day\s*(\d+)\s*[-—]\s*(.+)/i);
+            const finalTitle = dayMatch
+              ? dayMatch[2].trim()
+              : hText || "Lesson";
+            const secDay = dayMatch ? parseInt(dayMatch[1], 10) || day + i : day + i;
+
+            await createLesson({
+              topicId: parentId,
+              title: finalTitle,
+              content: contentToSave,
+              day: secDay,
+              type: lessonType,
+              duration: 1,
+              order: order + i,
+              images: pt.images,
+              attachments: pt.attachments,
+            });
+          }
+          toast.success(
+            `Added ${validPoints.length} lesson${validPoints.length > 1 ? "s" : ""}`,
+          );
         }
       }
 
@@ -429,6 +528,43 @@ export default function AdminCoursesPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "An error occurred");
     }
+  };
+
+  // Preview split sections from editor content without creating lessons
+  const handlePreviewSplit = () => {
+    const contentToParse = lessonContent;
+    const sectionRegex =
+      /<h1[^>]*>([\s\S]*?)<\/h1>([\s\S]*?)(?=(?:<h1[^>]*>)|$)/gi;
+    const sections: Array<{ day: number; title: string; html: string }> = [];
+    let m: RegExpExecArray | null;
+    while ((m = sectionRegex.exec(contentToParse)) !== null) {
+      const heading = (m[1] || "").replace(/<[^>]+>/g, "").trim();
+      const body = (m[2] || "").trim();
+      let dayNum = parseInt(lessonDay || "1", 10) || 1;
+      let titleText = heading || lessonTitle || "Untitled";
+      const hMatch = heading.match(/Day\s*(\d+)\s*[-—]\s*(.+)/i);
+      if (hMatch) {
+        dayNum = parseInt(hMatch[1], 10) || dayNum;
+        titleText = hMatch[2].trim() || titleText;
+      }
+      sections.push({
+        day: dayNum,
+        title: titleText,
+        html: `<h1>${m[1]}</h1>\n${body}`,
+      });
+    }
+
+    if (sections.length === 0) {
+      // fallback: single section
+      sections.push({
+        day: parseInt(lessonDay || "1", 10) || 1,
+        title: lessonTitle || "Lesson",
+        html: lessonContent || "",
+      });
+    }
+
+    setParsedSections(sections);
+    setPreviewDialogOpen(true);
   };
 
   const handleDelete = async () => {
@@ -605,7 +741,7 @@ export default function AdminCoursesPage() {
 
                 {/* Topics */}
                 {isExpanded && topics.length > 0 && (
-                  <div className="border-t border-gray-200 p-4 pl-12 space-y-3">
+                  <div className="border-t border-gray-200 p-4 pl-12 space-y-3 max-h-[300px] overflow-y-auto">
                     {topics.map((topic) => {
                       const lessons = lessonsForTopic(topic.id);
                       const isTopicExpanded = expandedTopics.has(topic.id);
@@ -809,31 +945,261 @@ export default function AdminCoursesPage() {
         </div>
       </div>
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent
-          className="max-w-2xl max-h-[90vh] overflow-y-auto"
-          onOpenAutoFocus={(e) => {
-            if (dialogType === "lesson") e.preventDefault();
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>
-              {editingItem ? "Edit" : "Add"}{" "}
-              {dialogType === "course"
-                ? "Course"
-                : dialogType === "topic"
-                  ? "Topic"
-                  : "Lesson"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingItem
-                ? "Update the details below"
-                : "Fill in the details below"}
-            </DialogDescription>
-          </DialogHeader>
+      {/* Lesson Sheet — slide from right */}
+      <Sheet open={dialogOpen && dialogType === "lesson"} onOpenChange={(open) => { if (!open) setDialogOpen(false); }}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl p-0 gap-0 flex flex-col bg-gray-50/80">
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-5 py-4 shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <SheetTitle className="text-gray-900 text-base font-semibold">{editingItem ? "Edit Lesson" : "Create New Lesson"}</SheetTitle>
+                <p className="text-gray-500 text-xs mt-0.5">Each point below becomes one lesson</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <SheetClose className="h-7 px-3 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                  Cancel
+                </SheetClose>
+                <Button size="sm" className="h-7 px-4 text-xs" onClick={() => void handleSave()}>
+                  {editingItem ? "Update" : "Create Lessons"}
+                </Button>
+              </div>
+            </div>
+            {/* Meta row */}
+            <div className="flex items-center gap-3 mt-3">
+              <div className="flex items-center gap-1.5 bg-gray-100 rounded-md px-2.5 py-1">
+                <Select value={lessonType} onValueChange={(v: any) => setLessonType(v)}>
+                  <SelectTrigger className="h-6 text-[11px] w-20 border-0 bg-transparent text-gray-700 [&>svg]:text-gray-500"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="teaching">Teaching</SelectItem>
+                    <SelectItem value="practice">Practice</SelectItem>
+                    <SelectItem value="project">Project</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-gray-300">|</span>
+                <label className="flex items-center gap-1 text-[11px] text-gray-600">
+                  Day <Input type="number" value={lessonDay} onChange={(e) => setLessonDay(e.target.value)} min="1" className="h-6 text-[11px] w-12 text-center bg-white border border-gray-200 text-gray-700" />
+                </label>
+                <span className="text-gray-300">|</span>
+                <label className="flex items-center gap-1 text-[11px] text-gray-600">
+                  # <Input type="number" value={lessonOrder} onChange={(e) => setLessonOrder(e.target.value)} min="1" className="h-6 text-[11px] w-12 text-center bg-white border border-gray-200 text-gray-700" />
+                </label>
+              </div>
+            </div>
+          </div>
 
-          <div className="space-y-4 py-4">
+          {/* Content sections */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+            {lessonPoints.map((point, idx) => {
+              const pointDay = parseInt(lessonDay || "1", 10) + idx;
+              return (
+                <div key={idx} className="border border-gray-200 rounded-lg bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                  {/* Section header — with left accent bar */}
+                  <div className="flex items-center gap-2.5 px-4 py-2 border-b border-gray-100">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-md bg-white border border-gray-200 text-xs font-bold text-gray-500 shadow-sm">
+                      {pointDay}
+                    </span>
+                    <span className="text-xs font-medium text-gray-600">Section {idx + 1}</span>
+                    <span className="text-[10px] text-gray-300">|</span>
+                    <span className="text-[10px] text-gray-400">Day {pointDay}</span>
+                    {lessonPoints.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => { setLessonPoints(prev => prev.filter((_, i) => i !== idx)); }}
+                        className="ml-auto p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="Remove section"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Heading input */}
+                  <div className="px-4 pt-3">
+                    <input
+                      type="text"
+                      value={point.heading}
+                      onChange={(e) => {
+                        setLessonPoints(prev =>
+                          prev.map((p, i) => (i === idx ? { ...p, heading: e.target.value } : p)),
+                        );
+                      }}
+                      placeholder="Lesson title"
+                      className="w-full text-sm font-semibold text-gray-800 bg-transparent border-0 border-b-2 border-transparent focus:border-indigo-300 focus:ring-0 outline-none pb-1.5 placeholder-gray-300 transition-colors"
+                    />
+                  </div>
+
+                  {/* Editor — uncontrolled, CSS placeholder */}
+                  <div className="px-3 pt-2">
+                    <div
+                      contentEditable
+                      suppressContentEditableWarning
+                      data-placeholder="Write your lesson content here…"
+                      ref={(el) => {
+                        if (el && !el.dataset.ceInit) {
+                          el.innerHTML = point.content || "";
+                          el.dataset.ceInit = "true";
+                        }
+                      }}
+                      onInput={(e) => {
+                        const html = e.currentTarget.innerHTML;
+                        setLessonPoints(prev => prev.map((p, i) => i === idx ? { ...p, content: html } : p));
+                      }}
+                      onBlur={(e) => {
+                        const html = e.currentTarget.innerHTML;
+                        setLessonPoints(prev => prev.map((p, i) => i === idx ? { ...p, content: html } : p));
+                      }}
+                      className="min-h-[90px] text-sm leading-relaxed text-gray-700 outline-none focus:bg-gray-50/50 rounded p-3 -m-2 transition-colors empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300 empty:before:pointer-events-none empty:before:cursor-text empty:before:block empty:before:select-none [&_h1]:text-base [&_h1]:font-semibold [&_h1]:text-gray-800 [&_h1]:border-l-3 [&_h1]:border-gray-300 [&_h1]:pl-2.5 [&_h1]:py-0.5 [&_h2]:text-sm [&_h2]:font-medium [&_h2]:text-gray-600"
+                    />
+                  </div>
+
+                  {/* Image + Doc upload row */}
+                  <div className="flex items-stretch gap-3 px-4 py-2.5 bg-gray-50/70 border-t border-gray-100">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {point.images.map((img, imgIdx) => (
+                          <div key={imgIdx} className="relative group h-9 w-9 rounded-md border border-gray-200 bg-white overflow-hidden shrink-0 shadow-sm">
+                            <img src={img.startsWith("http") ? img : resolveMediaUrl(img)} alt="" className="h-full w-full object-cover" loading="lazy" />
+                            <button type="button" onClick={() => { setLessonPoints(prev => prev.map((p, i) => i === idx ? { ...p, images: p.images.filter((_, j) => j !== imgIdx) } : p)); }} className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3 text-white" /></button>
+                          </div>
+                        ))}
+                        <label className="flex items-center justify-center h-9 w-9 rounded-md border border-dashed border-gray-300 text-gray-400 cursor-pointer hover:border-gray-400 hover:text-gray-500 hover:bg-white transition-colors shrink-0">
+                          <ImageIcon className="h-4 w-4" />
+                          <input type="file" accept="image/*" multiple className="hidden" onChange={async (e) => {
+                            const files = e.target.files;
+                            if (!files || files.length === 0) return;
+                            try {
+                              const urls: string[] = [];
+                              for (let f = 0; f < files.length; f++) { urls.push(await uploadLessonImage(files[f])); }
+                              setLessonPoints(prev => prev.map((p, i) => i === idx ? { ...p, images: [...p.images, ...urls] } : p));
+                              toast.success(`Uploaded ${files.length} image${files.length > 1 ? "s" : ""}`);
+                            } catch { toast.error("Image upload failed"); }
+                            e.target.value = "";
+                          }} />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="w-px bg-gray-200" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {point.attachments.map((doc, docIdx) => (
+                          <span key={docIdx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-white border border-gray-200 text-[11px] text-gray-500 shadow-sm max-w-[130px]">
+                            <span className="truncate">{doc.split("/").pop() || "file"}</span>
+                            <button type="button" onClick={() => { setLessonPoints(prev => prev.map((p, i) => i === idx ? { ...p, attachments: p.attachments.filter((_, j) => j !== docIdx) } : p)); }} className="text-gray-300 hover:text-red-500 shrink-0"><X className="h-3 w-3" /></button>
+                          </span>
+                        ))}
+                        <label className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-dashed border-gray-300 text-[11px] text-gray-400 cursor-pointer hover:border-gray-400 hover:text-gray-500 hover:bg-white transition-colors shrink-0 whitespace-nowrap">
+                          <Upload className="h-3 w-3" /> Document
+                          <input type="file" multiple className="hidden" onChange={async (e) => {
+                            const files = e.target.files;
+                            if (!files || files.length === 0) return;
+                            try {
+                              const urls: string[] = [];
+                              for (let f = 0; f < files.length; f++) { urls.push(await uploadLessonFile(files[f])); }
+                              setLessonPoints(prev => prev.map((p, i) => i === idx ? { ...p, attachments: [...p.attachments, ...urls] } : p));
+                              toast.success(`Uploaded ${files.length} file${files.length > 1 ? "s" : ""}`);
+                            } catch { toast.error("File upload failed"); }
+                            e.target.value = "";
+                          }} />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* File import + Add Section row */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const nextDay = parseInt(lessonDay || "1", 10) + lessonPoints.length;
+                  setLessonPoints(prev => [...prev, { heading: "", content: "", images: [], attachments: [] }]);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:text-indigo-500 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                Add New Section
+              </button>
+              <label className="flex items-center justify-center gap-2 py-3 px-5 rounded-lg border-2 border-dashed border-gray-200 text-sm text-gray-400 cursor-pointer hover:text-indigo-500 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all shrink-0 font-medium">
+                <Upload className="h-4 w-4" />
+                Import File
+                <input type="file" accept=".txt,.docx,.doc,.md" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const text = await file.text();
+                    // Convert markdown headings → HTML headings before wrapping in <p>
+                    const mdHtml = text
+                      .replace(/^###\s+(.+)$/gm, "<h3>$1</h3>")
+                      .replace(/^##\s+(.+)$/gm, "<h2>$1</h2>")
+                      .replace(/^#\s+(.+)$/gm, "<h1>$1</h1>");
+                    const html = mdHtml
+                      .split(/\n{2,}/)
+                      .map((block) => {
+                        const b = block.trim();
+                        if (!b) return "";
+                        // Don't double-wrap heading tags in <p>
+                        if (/^<h[1-3]>/.test(b)) return b;
+                        return `<p>${b.replace(/\n/g, "<br>")}</p>`;
+                      })
+                      .join("\n");
+                    const sectionRegex = /<h1[^>]*>([\s\S]*?)<\/h1>([\s\S]*?)(?=(?:<h1[^>]*>)|$)/gi;
+                    const imported: Array<{ heading: string; body: string }> = [];
+                    let m: RegExpExecArray | null;
+                    while ((m = sectionRegex.exec(html)) !== null) {
+                      const h = (m[1] || "").replace(/<[^>]+>/g, "").trim();
+                      imported.push({ heading: h, body: (m[2] || "").trim() });
+                    }
+                    if (imported.length > 0) {
+                      setLessonPoints(prev => [
+                        ...prev,
+                        ...imported.map(p => ({
+                          heading: p.heading,
+                          content: p.body,
+                          images: [] as string[],
+                          attachments: [] as string[],
+                        })),
+                      ]);
+                      toast.success(`Imported "${file.name}" — ${imported.length} section${imported.length > 1 ? "s" : ""}`);
+                    } else {
+                      setLessonPoints(prev => [...prev, { heading: "", content: html, images: [], attachments: [] }]);
+                      toast.success(`Imported "${file.name}"`);
+                    }
+                  } catch { toast.error("Failed to read file"); }
+                  e.target.value = "";
+                }} />
+              </label>
+            </div>
+          </div>
+
+          {/* Footer: summary bar */}
+          <div className="shrink-0 border-t border-gray-200 bg-gray-50/50 px-5 py-2 flex items-center justify-between text-[11px] text-gray-400">
+            <span>{lessonPoints.length} section{lessonPoints.length !== 1 ? "s" : ""}</span>
+            <span className="flex items-center gap-1">
+              <span>Day {lessonDay}</span>
+              <span>→</span>
+              <span>Day {parseInt(lessonDay || "1", 10) + lessonPoints.length - 1}</span>
+            </span>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Regular Dialog for Course / Topic */}
+      <Dialog open={dialogOpen && dialogType !== "lesson"} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
+          <>
+            <DialogHeader className="px-6 pt-6 pb-0 shrink-0">
+              <DialogTitle>
+                {editingItem ? "Edit" : "Add"}{" "}
+                {dialogType === "course" ? "Course" : "Topic"}
+              </DialogTitle>
+              <DialogDescription>
+                {editingItem ? "Update the details below" : "Fill in the details below"}
+              </DialogDescription>
+            </DialogHeader>
+
+              <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
             {dialogType === "course" && (
               <>
                 <div>
@@ -1103,118 +1469,61 @@ export default function AdminCoursesPage() {
                 </div>
               </>
             )}
-
-            {dialogType === "lesson" && (
-              <>
-                <div>
-                  <Label htmlFor="lessonTitle">Lesson Title</Label>
-                  <Input
-                    id="lessonTitle"
-                    value={lessonTitle}
-                    onChange={(e) => setLessonTitle(e.target.value)}
-                    placeholder="e.g., Introduction to MS Word"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lessonContent">Content</Label>
-                  <Textarea
-                    id="lessonContent"
-                    value={lessonContent}
-                    onChange={(e) => setLessonContent(e.target.value)}
-                    placeholder="Detailed lesson content"
-                    rows={5}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lessonDay">Day</Label>
-                  <Input
-                    id="lessonDay"
-                    type="number"
-                    value={lessonDay}
-                    onChange={(e) => setLessonDay(e.target.value)}
-                    min="1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lessonType">Type</Label>
-                  <Select
-                    value={lessonType}
-                    onValueChange={(value: any) => setLessonType(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="teaching">Teaching</SelectItem>
-                      <SelectItem value="practice">Practice</SelectItem>
-                      <SelectItem value="project">Project</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="lessonOrder">Order</Label>
-                  <Input
-                    id="lessonOrder"
-                    type="number"
-                    value={lessonOrder}
-                    onChange={(e) => setLessonOrder(e.target.value)}
-                    min="1"
-                  />
-                </div>
-
-                <div className="pt-4 border-t border-gray-100">
-                  <h4 className="text-sm font-semibold mb-3 text-gray-900 flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4" />
-                    Lesson Media & Images
-                  </h4>
-                  <LessonPracticeImagesField
-                    images={lessonImages}
-                    onImagesChange={setLessonImages}
-                    attachments={lessonAttachments}
-                    onAttachmentsChange={setLessonAttachments}
-                    persistLessonId={editingItem?.id ?? null}
-                    onAfterServerSync={() => refreshData({ silent: true })}
-                    onBusyChange={setPracticeImagesBusy}
-                    onOpenLightbox={(urls, index) =>
-                      setImageLightbox({ urls, index })
-                    }
-                  />
-                </div>
-
-                <div className="pt-4 border-t border-gray-100">
-                  <h4 className="text-sm font-semibold mb-3 text-gray-900 flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Additional Files & Attachments
-                  </h4>
-                  <LessonAttachmentsField
-                    attachments={lessonAttachments}
-                    onAttachmentsChange={setLessonAttachments}
-                    persistLessonId={editingItem?.id ?? null}
-                    onAfterServerSync={() => refreshData({ silent: true })}
-                    onBusyChange={setAttachmentsBusy}
-                  />
-                </div>
-              </>
-            )}
           </div>
 
+            <DialogFooter className="px-6 pb-6 pt-2 shrink-0">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button onClick={() => void handleSave()}>{editingItem ? "Update" : "Create"}</Button>
+            </DialogFooter>
+          </>
+        </DialogContent>
+      </Dialog>
+
+      {/* Simple split confirmation dialog (fallback when needed) */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create multiple lessons?</DialogTitle>
+            <DialogDescription>
+              {parsedSections.length} sections found — one lesson per H1 heading.
+            </DialogDescription>
+          </DialogHeader>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
               Cancel
             </Button>
             <Button
-              type="button"
-              disabled={
-                dialogType === "lesson" &&
-                (practiceImagesBusy || attachmentsBusy)
-              }
-              onClick={() => void handleSave()}
+              onClick={async () => {
+                try {
+                  for (let i = 0; i < parsedSections.length; i++) {
+                    const s = parsedSections[i];
+                    await createLesson({
+                      topicId: parentId,
+                      title: s.title,
+                      content: s.html,
+                      day: s.day,
+                      type: lessonType,
+                      duration: 1,
+                      order: parseInt(lessonOrder || "1", 10) + i,
+                      images: lessonImages,
+                      attachments: lessonAttachments,
+                    });
+                  }
+                  toast.success(`Added ${parsedSections.length} lessons`);
+                  setPreviewDialogOpen(false);
+                  setDialogOpen(false);
+                  resetForm();
+                  await refreshData({ silent: true });
+                } catch (err) {
+                  toast.error(
+                    err instanceof Error
+                      ? err.message
+                      : "Failed to create lessons",
+                  );
+                }
+              }}
             >
-              {editingItem ? "Update" : "Create"}
+              Create {parsedSections.length} Lessons
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1254,6 +1563,88 @@ export default function AdminCoursesPage() {
         initialIndex={imageLightbox?.index ?? 0}
         title="Lesson image"
       />
+    </div>
+  );
+}
+
+/** Strip <h1> tags and convert <div> to <p> to preserve line breaks. */
+function stripH1AndDiv(html: string): string {
+  return html
+    .replace(/<\/?h1[^>]*>/gi, "")      // remove <h1> and </h1>
+    .replace(/<div([^>]*)>/gi, "<p$1>") // convert <div> → <p>
+    .replace(/<\/div>/gi, "</p>")       // convert </div> → </p>
+    .trim();
+}
+
+/** Combine heading + body into stored lesson HTML (no H1/div tags). */
+function buildLessonHtml(_heading: string, body: string): string {
+  const b = body.trim();
+  if (!b) return "";
+  return stripH1AndDiv(b);
+}
+
+/** Live preview showing how H1 headings become day-wise lesson sections. */
+function SectionPreview({
+  content,
+  defaultDay,
+  defaultTitle,
+}: {
+  content: string;
+  defaultDay: number;
+  defaultTitle: string;
+}) {
+  const sections = React.useMemo(() => {
+    const sectionRegex =
+      /<h1[^>]*>([\s\S]*?)<\/h1>([\s\S]*?)(?=(?:<h1[^>]*>)|$)/gi;
+    const result: Array<{ day: number; title: string; body: string }> = [];
+    let m: RegExpExecArray | null;
+    while ((m = sectionRegex.exec(content)) !== null) {
+      const heading = (m[1] || "").replace(/<[^>]+>/g, "").trim();
+      const body = (m[2] || "").trim();
+      let dayNum = defaultDay;
+      let titleText = heading || defaultTitle || "Untitled";
+      const hMatch = heading.match(/Day\s*(\d+)\s*[-—]\s*(.+)/i);
+      if (hMatch) {
+        dayNum = parseInt(hMatch[1], 10) || dayNum;
+        titleText = hMatch[2].trim() || titleText;
+      }
+      result.push({ day: dayNum, title: titleText, body });
+    }
+    return result;
+  }, [content, defaultDay, defaultTitle]);
+
+  if (!content || sections.length === 0) return null;
+
+  return (
+    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-white/50 border-b border-indigo-100">
+        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600">
+          <Layers className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs font-semibold text-indigo-700">
+          {sections.length} section{sections.length > 1 ? "s" : ""} detected
+        </span>
+        {sections.length > 1 && <span className="text-[11px] text-indigo-400 ml-1">— each H1 = one lesson</span>}
+      </div>
+      <div className="divide-y divide-indigo-100/60">
+        {sections.map((s, i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/40 transition-colors">
+            <span className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold text-xs shadow-sm">
+              {s.day}
+            </span>
+            <span className="text-sm font-medium text-gray-800">{s.title}</span>
+            {s.body && (
+              <span className="text-xs text-gray-400 hidden sm:block truncate max-w-[200px]">
+                {s.body.replace(/<[^>]+>/g, "").slice(0, 60)}
+                {(s.body.replace(/<[^>]+>/g, "").length > 60 ? "…" : "")}
+              </span>
+            )}
+            <span className="ml-auto text-[10px] text-indigo-400 font-medium uppercase tracking-wider">
+              Lesson {i + 1}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

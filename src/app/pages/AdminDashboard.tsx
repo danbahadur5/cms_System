@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { FolderOpen, BookOpen, FileText, Settings, LogOut } from "lucide-react";
+import {
+  FolderOpen,
+  BookOpen,
+  FileText,
+  Settings,
+  LogOut,
+  Layout,
+  Type,
+  Image,
+  Paperclip,
+  BarChart3,
+} from "lucide-react";
 import { fetchAdminTree } from "../utils/courseService";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
 import { Button } from "../components/ui/button";
@@ -96,7 +107,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
           <h2 className="mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Link
@@ -127,6 +138,94 @@ export default function AdminDashboard() {
               <h3 className="font-semibold mb-1">Manage Lessons</h3>
               <p className="text-sm text-gray-600">Create day-wise lessons</p>
             </Link>
+          </div>
+        </div>
+
+        {/* Admin Content Section */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center gap-2 mb-5">
+            <Layout className="h-5 w-5 text-indigo-600" />
+            <h2 className="mb-0">Admin Content</h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-5">
+            Manage the content that appears throughout the platform for admins.
+            Use the MS Word-style editor to create structured, day-wise lessons.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-indigo-50 to-white">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-indigo-100 text-indigo-600 shrink-0">
+                  <Type className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm mb-1">
+                    Heading Auto-Formatting
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    Select text and apply Heading 1 from the toolbar. The editor
+                    automatically prepends{" "}
+                    <code className="bg-gray-100 px-1 rounded">Day X —</code>{" "}
+                    to the heading. Day numbers auto-increment as you create new
+                    sections.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-green-50 to-white">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-green-100 text-green-600 shrink-0">
+                  <Image className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm mb-1">
+                    Images & Media
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    Upload lesson images and practice materials directly.
+                    Supported formats: PNG, JPG, GIF. Images are displayed as
+                    thumbnails in the course view.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-purple-50 to-white">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-purple-100 text-purple-600 shrink-0">
+                  <Paperclip className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm mb-1">
+                    Files & Attachments
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    Attach PDFs, documents, and code files to lessons, topics,
+                    or courses. Students can download these resources from the
+                    course view.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-amber-50 to-white">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-amber-100 text-amber-600 shrink-0">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm mb-1">
+                    Lesson Types
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    Choose from Teaching (theory), Practice (exercises), or
+                    Project (assignments). Types are color-coded blue, amber,
+                    and green respectively.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
